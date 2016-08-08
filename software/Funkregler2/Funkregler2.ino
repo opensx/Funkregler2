@@ -722,7 +722,10 @@ void switchOffBatt() {
  }  */
 
 void toggleConfig(void) {
-
+#ifdef DEBUG
+	Serial.print("toggleConfig, mode=");
+	Serial.println(mode);
+#endif
 	if (mode == MODE_CONFIG) {
 		Serial.println("ending Config");
 		mode = MODE_NORMAL;
@@ -731,14 +734,15 @@ void toggleConfig(void) {
 		Serial.end();
 #endif
 	} else {
+		disp.dispCharacters('c', 'o'); // == (co)nfig
 		if (!Serial) { //  config only works with USB connected
-			uint32_t timeout = millis() + 20000;  // 10 secs timeout
+			uint32_t timeout=millis();
 
 			Serial.begin(57600); // must initialize when not in debug
-			while (!Serial || (millis() > timeout)) {
+			while (!Serial && ((millis() - timeout) < 10000) ) { // 10 secs timeout
 				delay(100);
 			}
-			if (millis() > timeout) {
+			if (!Serial) {
 				// timeout, nothing connected on USB, go back to normal mode
 				mode = MODE_NORMAL;
 				disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
@@ -802,6 +806,9 @@ void printConfig(void) {
 	Serial.print("  addrmode=");
 	String m = addrSel.getModeString();
 	Serial.print(m);
+	Serial.print("lastLoco=");
+	uint16_t last=eep.readLastLoco();
+	Serial.println(last);
 	Serial.print("  locos=");
 	String ll = addrSel.getLocos();
 	Serial.println(ll);

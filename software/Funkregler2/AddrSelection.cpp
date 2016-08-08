@@ -52,13 +52,22 @@ void AddrSelection::start(uint16_t addr) {
 
 	// read address mode
 	_mode = eep.readAddrMode();
+#ifdef _DEBUG
+	Serial.println("addrsel. start.");
+	Serial.print("addr_mode=");
+#endif
 
 	if (_mode == ADDR_MODE_SINGLE) {
+#ifdef _DEBUG
+		Serial.println("single");
+#endif
 		_addresses[0] = addr;
 		_selectedIndex = 0;
 		_nAddresses = 1;
 	} else {
-
+#ifdef _DEBUG
+		Serial.println("multi");
+#endif
 		// check if the last loco is in new new locoList
 		_selectedIndex = 0;  // there is always at least one loco
 		for (int i = 0; i < _nAddresses; i++) {
@@ -138,9 +147,9 @@ uint16_t AddrSelection::getMode(void) {
 	return _mode;
 }
 
-bool AddrSelection::setMode(uint16_t mode) {
-	if ((_mode == ADDR_MODE_SINGLE) || (_mode == ADDR_MODE_MULTI)) {
-		_mode = mode;
+bool AddrSelection::setMode(uint16_t mo) {
+	if ((mo == ADDR_MODE_SINGLE) || (mo == ADDR_MODE_MULTI)) {
+		_mode = mo;
 		eep.writeAddrMode(_mode);
 		return true;  // success
 	} else {

@@ -96,11 +96,13 @@ String FunkrEEPROM::readConfigString(word addr) {
 
 uint16_t FunkrEEPROM::readConfigUInt16(word addr) {
 	uint16_t d = 0;
+    Serial.println();
 
 	byte low = eeprom.readByte(addr);
 	byte high = eeprom.readByte(addr+1);
 
 	d = (((uint16_t)high ) << 8) | low;
+
 	return d;
 
 }
@@ -111,8 +113,9 @@ bool FunkrEEPROM::writeConfigUInt16(word addr, uint16_t d) {
 	byte high = (d >> 8) && 0xff;
 
 	eeprom.writeByte(addr,low);
+	delay(10);  // important
 	eeprom.writeByte(addr+1, high);
+	delay(10);  // important
 
-	delay(20);
 	return true;
 }

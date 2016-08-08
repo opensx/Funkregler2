@@ -5,8 +5,8 @@
  *      Author: mblank
  */
 
-#ifndef LIBRARIES_EEPROM24C32_64_ADDRSELECTION_H_
-#define LIBRARIES_EEPROM24C32_64_ADDRSELECTION_H_
+#ifndef _ADDRSELECTION_H_
+#define _ADDRSELECTION_H_
 
 #include <Arduino.h>
 #include "pcb-type.h"
@@ -56,4 +56,4 @@ private:
 
 
 
-#endif /* LIBRARIES_EEPROM24C32_64_ADDRSELECTION_H_ */
+#endif /* _ADDRSELECTION_H_ */
