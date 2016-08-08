@@ -8,18 +8,20 @@ version for MKR1000 and 2 digit 7-segment display
 
 BETA Version - don't use.
 
-Rotary Encoder für Speed und Adress Selection
-Buttons für Adress-Selection ("A"), Licht (F0="L") und Function (F1="F")
+Hardware rev. 0.3
+
+- Rotary Encoder für Speed und Adress Selection
+- Buttons für Adress-Selection ("A"), Licht (F0="L") und Function (F1="F")
 
 08 Aug 2016 - initial Version
 
 #Libraries needed
-SPI
-WiFi101
-WiFiUdp
-Wire
-Eeprom24C32_64
-Timer5  (timer for SAMD)
+- SPI
+- WiFi101
+- WiFiUdp
+- Wire
+- Eeprom24C32_64
+- Timer5  (timer for SAMD)
 
 You can use the "library manager" of the arduino IDE to install the 
 libraries, see
