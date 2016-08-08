@@ -29,8 +29,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_19
-#define SW_STRING "SW_0.19"
+#define SW_REV_0_20
+#define SW_STRING "SW_0.20"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -319,7 +319,7 @@ void updateBuffer() {
 	batteryVoltage = batteryVoltage * 2;                         //mV on Battery
 	//batteryState = map(batteryVoltage , 3200, 4250, 0, 100);              //% of charge
 	char rev[] = HW_STRING " - " SW_STRING;
-	int secs = (int) (millis() / 1000);
+	//int secs = (int) (millis() / 1000);
 	sprintf(buffer, "A FUNKR2 %d.%d.%d.%d %d %d %s %d", ip[0], ip[1], ip[2],
 			ip[3], batteryVoltage, rssi, rev, mode);
 }
@@ -732,7 +732,7 @@ void toggleConfig(void) {
 #endif
 	} else {
 		if (!Serial) { //  config only works with USB connected
-			long timeout = millis() + 20000;  // 10 secs timeout
+			uint32_t timeout = millis() + 20000;  // 10 secs timeout
 
 			Serial.begin(57600); // must initialize when not in debug
 			while (!Serial || (millis() > timeout)) {
