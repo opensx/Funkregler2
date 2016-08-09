@@ -22,6 +22,7 @@ Hardware rev. 0.3
 - Wire
 - Eeprom24C32_64
 - Timer5  (timer for SAMD)
+- Adafruit_SleepyDog
 
 You can use the "library manager" of the arduino IDE to install the 
 libraries, see
