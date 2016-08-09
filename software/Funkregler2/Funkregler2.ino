@@ -19,6 +19,7 @@
 
 #include <OneButton.h>
 #include <Timer5.h>
+#include <Adafruit_SleepyDog.h>
 
 #include "pcb-type.h"  
 #include "FunkrEEPROM.h"
@@ -123,6 +124,8 @@ void setup() {
 	while ((!Serial) && ((millis() - t1) < 10000)) {
 		// make sure we read everything
 		//BUT wait only for 20 secs
+		// Watchdog.reset();   // no watchdog enabled so far
+		delay(100);
 	}
 
 	Serial.println("Funkregler2");
@@ -163,11 +166,12 @@ void setup() {
 		Serial.begin(57600);
 		while (!Serial) {
 			delay(100);
+			Watchdog.reset();
 		}
 		printConfigHelp();
 #endif
 	}
-
+	Watchdog.enable(4000);
 }
 
 void initButtons() {
@@ -223,22 +227,22 @@ bool initFromEEPROM() {
 }
 
 /*bool isValidAddress(uint16_t a) {
-	if (ccmode == CCMODE_SX) {
-		if ((a <= 0) || (a >= 100)) {
-			return false;
-		} else {
-			return true;
-		}
-	} else if (ccmode == CCMODE_DCC) {
-		if ((a <= 0) || (a >= 10000)) {
-			return false;
-		} else {
-			return true;
-		}
-	} else {
-		return false;
-	}
-} */
+ if (ccmode == CCMODE_SX) {
+ if ((a <= 0) || (a >= 100)) {
+ return false;
+ } else {
+ return true;
+ }
+ } else if (ccmode == CCMODE_DCC) {
+ if ((a <= 0) || (a >= 10000)) {
+ return false;
+ } else {
+ return true;
+ }
+ } else {
+ return false;
+ }
+ } */
 
 void reconnectToWiFi() {
 	// Connect to WPA/WPA2 network:
@@ -274,7 +278,7 @@ void connectToWiFi() {
 		// Connect to WPA/WPA2 network:
 		WiFi.begin(ssid, pass);
 		wifi_retries++;
-
+		Watchdog.reset();
 		delay(500);  // wait
 
 		Udp.beginMulti(lanbahnip, lanbahnport);
@@ -295,7 +299,10 @@ void connectToWiFi() {
 		Serial.print("ERROR: could not connect to ");
 		Serial.println(ssid);
 #endif
-		delay(3000);
+		Watchdog.reset();
+		delay(1000);
+		Watchdog.reset();
+		delay(1000);
 
 		// ***************** switching to config mode **********************
 		mode = MODE_CONFIG;
@@ -571,6 +578,7 @@ void sendTrackPower() {
 }
 
 void loop() {
+	Watchdog.reset();
 
 	encoder.tick();
 	stopBtn.tick();
@@ -666,33 +674,42 @@ void loop() {
 			Serial.begin(57600);
 		while (!Serial && ((millis() - timeout) < 20000)) {
 			// wait for 20 seconds for serial usb connection.
+			Watchdog.reset();
+			delay(100);
 		}
 		if (!Serial) {  // no sense to wait any longer
 			mode = MODE_NORMAL;
-			encoder.setPosition(0); // reset encoder position to 0
 			disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
-		}
-		if (Serial && (Serial.available() > 0)) {
-			String line = Serial.readStringUntil('\n');
-			line.toLowerCase();
-			userInteraction(); // reset switch off timer
-			bool end = updateConfig(line);
-			if (end) {
-				mode = MODE_NORMAL;
-				disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
-				Serial.println("exiting config");
+		} else {
+			if (Serial.available() > 0) {
+				String line = Serial.readStringUntil('\n');  // has 1 second timeout
+				line.toLowerCase();
+				userInteraction(); // reset switch off timer
+				Watchdog.reset();
+				bool end = updateConfig(line);
+				if (end) {
+					mode = MODE_NORMAL;
+					disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
+					Serial.println("exiting config");
 #ifndef _DEBUG
-				Serial.end();
+					Serial.end();
 #endif
-			}
+				}
 
+			}
 		}
 
+	} else {
+		// something went wrong
+		mode = MODE_NORMAL;
+#ifdef _DEBUG
+		Serial.println("unknown mode - switched back to NORMAL");
+#endif
 	}
 
 	// switch off after 10 minutes w/o user interaction
 	if ((millis() - switchOffTimer) >= 10 * 60 * 1000) {
-		digitalWrite(BATT_ON, LOW); // ==>> THIS IS THE END.
+		switchOffBatt(); // ==>> THIS IS THE END.
 	}
 
 }
@@ -736,11 +753,12 @@ void toggleConfig(void) {
 	} else {
 		disp.dispCharacters('c', 'o'); // == (co)nfig
 		if (!Serial) { //  config only works with USB connected
-			uint32_t timeout=millis();
+			uint32_t timeout = millis();
 
 			Serial.begin(57600); // must initialize when not in debug
-			while (!Serial && ((millis() - timeout) < 10000) ) { // 10 secs timeout
+			while (!Serial && ((millis() - timeout) < 10000)) { // 10 secs timeout
 				delay(100);
+				Watchdog.reset();
 			}
 			if (!Serial) {
 				// timeout, nothing connected on USB, go back to normal mode
@@ -791,8 +809,7 @@ void printWifi(void) {
 }
 
 void printConfig(void) {
-	Serial.println(
-			"current config settings ----------------------");
+	Serial.println("current config settings ----------------------");
 	Serial.print("hw=");
 	Serial.print(HW_STRING);
 	Serial.print("  sw=");
@@ -805,18 +822,17 @@ void printConfig(void) {
 	Serial.print(loco.getAddress());
 	Serial.print("  addrmode=");
 	String m = addrSel.getModeString();
-	Serial.print(m);
+	Serial.println(m);
 	Serial.print("lastLoco=");
-	uint16_t last=eep.readLastLoco();
-	Serial.println(last);
+	uint16_t last = eep.readLastLoco();
+	Serial.print(last);
 	Serial.print("  locos=");
 	String ll = addrSel.getLocos();
 	Serial.println(ll);
 	//Serial.print("  cc=");
 	//String s = s_ccmode[ccmode];
 	//Serial.println(s);
-	Serial.println(
-				"----------------------------------------------");
+	Serial.println("----------------------------------------------");
 }
 
 void printConfigHelp(void) {
@@ -893,7 +909,7 @@ bool updateConfig(String line) {
 		printConfigHelp();
 	} else if (line.startsWith("addrmode=")) {
 		String s = line.substring(line.indexOf('=') + 1);
-        Serial.println(s);
+		Serial.println(s);
 		if (addrSel.setModeString(s)) { // valid value
 			// TODO ?? change loco address
 			Serial.print("addrmode=");
