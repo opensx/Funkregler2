@@ -7,8 +7,11 @@
 
 //********************* general - HW independent
 
-#define HWREV_0_3   // test pcb rev 0.3 with EEPROM
-#define HW_STRING "HW_0.3"
+//#define HWREV_0_3   // test pcb rev 0.3 with EEPROM
+//#define HW_STRING "HW_0.3"
+
+#define HWREV_D_0_1
+#define HW_STRING "HW_D0.1"
 
 #define MAX 31         // Selectrix
 //#define MAX 127     //DCC
@@ -22,6 +25,15 @@
 #define CCMODE_SX    0
 #define CCMODE_DCC   1
 
+//******* EEPROM DEFINES ***********************************************
+#define MAX_STRING_LEN  30    // reason: Wire library, max i2c message
+
+#define EEPROM_SSID       100     // EEPROM addresses, non-overlapping ...
+                                   // strings of length 30 are stored here
+#define EEPROM_PASS       140
+#define EEPROM_LOCOLIST   180
+#define CCMODE_ADDRESS     220
+#define LAST_INDEX_ADDRESS   80    // last selected loco
 
 
 //******* HARDWARE PINS ********** REV 0.2(a) *************************
@@ -71,15 +83,42 @@
 #define F0_BTN     3      // toggle button
 #define F1_BTN     9     // momentary function
 
-//******* EEPROM DEFINES ***********************************************
-#define MAX_STRING_LEN  30    // reason: Wire library, max i2c message
+//******* HARDWARE PINS ******** DCC (4digit) 0.1 **************
+#elif defined (HWREV_D_0_1)
 
-#define EEPROM_SSID       100     // EEPROM addresses, non-overlapping ...
-                                   // strings of length 30 are stored here
-#define EEPROM_PASS       140
-#define EEPROM_LOCOLIST   180
-#define CCMODE_ADDRESS     220
-#define LAST_INDEX_ADDRESS   80    // last selected loco
+#define DIGITS4
+#define ANODE1   A0          // left side 7-seg enable (active low)
+#define ANODE2   A3          // right side 7-seg enable  (active low)
+#define ANODE3   A4          // right side 7-seg enable  (active low)
+#define ANODE4   9          // right side 7-seg enable  (active low)
+
+#define VOLT_3300   3200     // Battery-AD calibration
+
+#define ENC1    6   // first encoder pin
+#define ENC2    8   // second encoder pin
+
+#define DP      1
+
+#define BATT_PIN   A1    // battery is at A1, connected by 2:1 divider
+#define FW         0    // display-number for forward direction
+#define BW         3    // display-number for backward direction
+#define STOP_BTN  7     // encoder push button
+#define BATT_ON    0     // for switching batt power on / off
+
+
+//************ 1 digital Buttons ***************************
+#define ADDR_BTN   5     // for address selection (digital)
+
+//************ 5 analog Buttons ****************************
+
+#define ANALOG_BTN_PIN   A5
+#define F0_BTN     3      // toggle button
+#define F1_BTN     9     // momentary function
+#define F2_BTN     3      // toggle button
+#define F3_BTN     9     // momentary function
+#define F4_BTN     3      // toggle button
+
+
 
 #else   // ************************************************
 #error Hardware Revision not supported

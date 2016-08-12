@@ -21,6 +21,10 @@
 #include <Timer5.h>
 #include <Adafruit_SleepyDog.h>
 
+#ifdef HWREV_D_0_1
+#include <AnalogButton.h>
+#endif
+
 #include "pcb-type.h"  
 #include "FunkrEEPROM.h"
 #include "Display7.h"
@@ -30,8 +34,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_20
-#define SW_STRING "SW_0.20"
+#define SW_REV_0_21
+#define SW_STRING "SW_0.21"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -116,7 +120,7 @@ void setup() {
 
 	pinMode(BATT_ON, OUTPUT);
 	digitalWrite(BATT_ON, HIGH);  // batt power on
-	disp.setDecPoint(1, true);
+	disp.setDecPoint(BW, true);
 
 #ifdef _DEBUG
 	Serial.begin(57600); // USB is always 12 Mbit/sec
@@ -175,20 +179,25 @@ void setup() {
 }
 
 void initButtons() {
+#ifdef HWREV_D_0_1
+#else
+  pinMode(F0_BTN, INPUT_PULLUP);
+  pinMode(F1_BTN, INPUT_PULLUP);
+  f0Btn.attachClick(f0Clicked);
+  f0Btn.setClickTicks(100);  // click detected after xx ms
+  f1Btn.attachClick(f1Clicked);
+  f1Btn.setClickTicks(100);
+  f1Btn.setPressTicks(5000); // 5 secs for long press => switch off
+  f1Btn.attachLongPressStart(switchOffBatt);
+#endif
+
 	pinMode(ADDR_BTN, INPUT_PULLUP);
-	pinMode(F0_BTN, INPUT_PULLUP);
-	pinMode(F1_BTN, INPUT_PULLUP);
 	pinMode(STOP_BTN, INPUT_PULLUP);
 	addrBtn.setClickTicks(100);
 	addrBtn.setPressTicks(5000); // 5 secs for long press => entering config mode
 	addrBtn.attachClick(addrClicked);
 	addrBtn.attachLongPressStart(toggleConfig);
-	f0Btn.attachClick(f0Clicked);
-	f0Btn.setClickTicks(100);  // click detected after xx ms
-	f1Btn.attachClick(f1Clicked);
-	f1Btn.setClickTicks(100);
-	f1Btn.setPressTicks(5000); // 5 secs for long press => switch off
-	f1Btn.attachLongPressStart(switchOffBatt);
+
 	stopBtn.attachClick(stopClicked);
 	stopBtn.setClickTicks(100);
 
@@ -271,7 +280,11 @@ void connectToWiFi() {
 	Serial.print("  #=");
 	Serial.println(wifi_retries);
 #endif
+#ifdef DIGITS4
+  disp.blinkCharacters('1', '2', '3', '4');
+#else
 	disp.blinkCharacters('-', '-');
+#endif
 	int connectCounter = 0;
 	// attempt to connect to Wifi network:
 	while ((WiFi.status() != WL_CONNECTED) && (connectCounter < 3)) {
@@ -366,14 +379,19 @@ void sendAnnounceMessage() {
 }
 
 // update the display every 5msec
-// alternate between left and right display
+// alternate between left and right display (or all 4 digits in case of 4-digit display
 void display_irq(void) {
 	static int d = 0;
+#ifdef DIGITS4
+  d++ ;
+  if (d >= 4) d = 0;
+#else
 	if (d == 0) {
 		d = 1;
 	} else {
 		d = 0;
 	}
+#endif
 	disp.doDisplay(d);
 }
 

@@ -14,9 +14,7 @@
 #include <Arduino.h>
 #include "pcb-type.h"
 
-
-
-#define NCHAR   17
+#define NCHAR   18
 #define NSEG     8      // a   b   c  d   e  f  g  DP
 #define DP_SEG   7
 #define D_ON     1
@@ -36,8 +34,12 @@ public:
 	void switchOff();
 	void dispChar(int d, char c);
 	void blinkChar(int d, char c);
+
 	void dispCharacters(char c1, char c2);
+  void dispCharacters(char c1, char c2, char c3, char c4);
+  
 	void blinkCharacters(char c1, char c2);
+  void blinkCharacters(char c1, char c2, char c3, char c4);
 	void dispError(char c2);   // 'Ec2' blinking
 	void dispNumber(int n);
   void dispNumberSigned(int n, bool back);
@@ -50,11 +52,15 @@ public:
 private:
 
     bool _flickerOn;
+    bool _dim;
+    
+ #ifdef DIGITS4
+    volatile int _segmentOn[4][NSEG];  // [1 (leftmost),2,3,4][ a b .... DP]
+#else
     volatile int _segmentOn[2][NSEG];  // [right/left][ a b .... DP]
-	 bool _dim;
+#endif
 
-    //char ch[NCHAR];
-    //int number[NCHAR][7];
+
 };
 
 
