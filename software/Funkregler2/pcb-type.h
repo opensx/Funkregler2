@@ -87,10 +87,10 @@
 #elif defined (HWREV_D_0_1)
 
 #define DIGITS4
-#define ANODE1   A0          // left side 7-seg enable (active low)
-#define ANODE2   A3          // right side 7-seg enable  (active low)
-#define ANODE3   A4          // right side 7-seg enable  (active low)
-#define ANODE4   9          // right side 7-seg enable  (active low)
+#define ANODE1   9          // 1st 7-seg enable (active low)
+#define ANODE2   A4           // 2nd 7-seg enable  (active low)
+#define ANODE3   A3          // 3rd 7-seg enable  (active low)
+#define ANODE4   A0          // 4th 7-seg enable  (active low)
 
 #define VOLT_3300   3200     // Battery-AD calibration
 
@@ -100,8 +100,8 @@
 #define DP      1
 
 #define BATT_PIN   A1    // battery is at A1, connected by 2:1 divider
-#define FW         0    // display-number for forward direction
-#define BW         3    // display-number for backward direction
+#define FW         3    // display-number for forward direction
+#define BW         0    // display-number for backward direction
 #define STOP_BTN  7     // encoder push button
 #define BATT_ON    0     // for switching batt power on / off
 

@@ -11,8 +11,8 @@
 #include "Display7.h"
 
 // all characters we can display
-static char _ch[NCHAR] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A',
-		'C','c','E','F', 'o','-',' ' };
+static char _ch[NCHAR] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+		'A', 'C', 'c', 'E', 'F', 'o', '-', ' ' };
 
 // segments to switch on for a character (segment 1= bottom)
 static int _number[NCHAR][7] = { { 1, 1, 1, 1, 1, 1, 0 },  // 0
@@ -32,16 +32,16 @@ static int _number[NCHAR][7] = { { 1, 1, 1, 1, 1, 1, 0 },  // 0
 		{ 0, 1, 1, 1, 0, 0, 1 },  // F
 		{ 1, 1, 0, 0, 0, 1, 1 },  // o
 		{ 0, 0, 0, 0, 0, 0, 1 },  // -
-    { 0, 0, 0, 0, 0, 0, 0 }   // blank
+		{ 0, 0, 0, 0, 0, 0, 0 }   // blank
 };
 
 // pins on arduino to drive segments, active low
 #ifdef HWREV_0_2A
-static int _segments[NSEG] = { 4, 13, A2, A3, 10, 2, A4, 1 };
+static int _segments[NSEG] = {4, 13, A2, A3, 10, 2, A4, 1};
 #elif defined(HWREV_0_2)
-static int _segments[NSEG] = { 4, 13, 12, 11, 10, 2, A4, 1 };
+static int _segments[NSEG] = {4, 13, 12, 11, 10, 2, A4, 1};
 #elif defined(HWREV_0_3)
-static int _segments[NSEG] = { 4, 13, A2, A3, 10, 2, A4, 1 };
+static int _segments[NSEG] = {4, 13, A2, A3, 10, 2, A4, 1};
 #elif defined(HWREV_D_0_1)
 static int _segments[NSEG] = { 4, 13, A2, 3, 10, 2, A6, 1 };
 #endif
@@ -73,10 +73,10 @@ void Display7::init(void) {
 	digitalWrite(ANODE1, HIGH);  // off
 	digitalWrite(ANODE2, HIGH);  // off
 #ifdef DIGITS4
-  pinMode(ANODE3, OUTPUT);
-  pinMode(ANODE4, OUTPUT);
-  digitalWrite(ANODE3, HIGH);  // off
-  digitalWrite(ANODE4, HIGH);  // off
+	pinMode(ANODE3, OUTPUT);
+	pinMode(ANODE4, OUTPUT);
+	digitalWrite(ANODE3, HIGH);  // off
+	digitalWrite(ANODE4, HIGH);  // off
 #endif
 
 	for (int i = 0; i < 8; i++) {
@@ -88,6 +88,7 @@ void Display7::init(void) {
 	}
 	_flickerOn = false;
 	_dim = false;
+	_blockTime = 0;
 
 }
 
@@ -98,8 +99,8 @@ void Display7::switchOn(int digit) {
 	digitalWrite(ANODE1, HIGH);
 	digitalWrite(ANODE2, HIGH);
 #ifdef DIGITS4
-  digitalWrite(ANODE3, HIGH);
-  digitalWrite(ANODE4, HIGH);
+	digitalWrite(ANODE3, HIGH);
+	digitalWrite(ANODE4, HIGH);
 #endif
 
 	if (digit == 0) {
@@ -108,14 +109,14 @@ void Display7::switchOn(int digit) {
 		digitalWrite(ANODE2, LOW);
 	} else if (digit == 2) {
 #ifdef DIGITS4
-    digitalWrite(ANODE3, LOW);
+		digitalWrite(ANODE3, LOW);
 #endif
-  } else if (digit == 3) {
+	} else if (digit == 3) {
 #ifdef DIGITS4
-    digitalWrite(ANODE4, LOW);
+		digitalWrite(ANODE4, LOW);
 #endif
-  }
-  // else switch both off
+	}
+	// else switch both off
 }
 
 void Display7::setDecPoint(int disp, bool state) {
@@ -133,8 +134,8 @@ void Display7::decBlink(int disp) {
 void Display7::doDisplay(int d) {
 	static long blinkTimer = 0;
 
-	int blinkState =0;
-	if ((millis() - blinkTimer) <= 500 ) {
+	int blinkState = 0;
+	if ((millis() - blinkTimer) <= 500) {
 		blinkState = 0;
 	} else if ((millis() - blinkTimer) <= 1000) {
 		blinkState = 1;
@@ -145,14 +146,14 @@ void Display7::doDisplay(int d) {
 	switchOn(d);
 	for (int i = 0; i < NSEG; i++) {
 		switch (_segmentOn[d][i]) {
-			case 1:
-			  digitalWrite(_segments[i], LOW);  // ON
-			  break;
-		   case 0:
-			  digitalWrite(_segments[i], HIGH);  // OFF
-			  break;
-			case 2:
-			  digitalWrite(_segments[i], blinkState);	 // timer dependent
+		case 1:
+			digitalWrite(_segments[i], LOW);  // ON
+			break;
+		case 0:
+			digitalWrite(_segments[i], HIGH);  // OFF
+			break;
+		case 2:
+			digitalWrite(_segments[i], blinkState);	 // timer dependent
 		}
 	}
 
@@ -162,11 +163,10 @@ void Display7::switchOff() {
 	digitalWrite(ANODE1, HIGH);
 	digitalWrite(ANODE2, HIGH);
 #ifdef DIGITS4
-  digitalWrite(ANODE3, HIGH);
-  digitalWrite(ANODE4, HIGH);
+	digitalWrite(ANODE3, HIGH);
+	digitalWrite(ANODE4, HIGH);
 #endif
 }
-
 
 void Display7::dispChar(int d, char c) {
 
@@ -200,11 +200,28 @@ void Display7::blinkChar(int d, char c) {
 }
 
 void Display7::dispCharacters(char c1, char c2) {
+	if (millis() < _blockTime)
+		return;
+
 #ifdef DIGITS4
-  dispChar(0,' ');
-  dispChar(3,' ');
-  dispChar(2, c1);
-  dispChar(1, c2);
+	dispChar(0, ' ');
+
+	dispChar(1, c1);
+	dispChar(2, c2);
+	dispChar(3, ' ');
+#else
+	dispChar(1, c1);
+	dispChar(0, c2);
+#endif
+}
+
+void Display7::dispCharacters(char c1, char c2, uint32_t block) {
+	_blockTime = millis() + block;
+#ifdef DIGITS4
+	dispChar(0, ' ');
+	dispChar(1, c1);
+	dispChar(2, c2);
+	dispChar(3, ' ');
 #else
 	dispChar(1, c1);
 	dispChar(0, c2);
@@ -212,19 +229,33 @@ void Display7::dispCharacters(char c1, char c2) {
 }
 
 void Display7::dispCharacters(char c1, char c2, char c3, char c4) {
-  dispChar(1, c1);
-  dispChar(0, c2);
-  dispChar(2, c3);
-  dispChar(3, c4);
-  
+	if (millis() < _blockTime)
+		return;
+
+	dispChar(0, c1);
+	dispChar(1, c2);
+	dispChar(2, c3);
+	dispChar(3, c4);
+
+}
+
+void Display7::dispCharacters(char c1, char c2, char c3, char c4,
+		uint32_t block) {
+	_blockTime = millis() + block;
+
+	dispChar(0, c1);
+	dispChar(1, c2);
+	dispChar(2, c3);
+	dispChar(3, c4);
+
 }
 
 void Display7::blinkCharacters(char c1, char c2) {
 #ifdef DIGITS4
-  blinkChar(2, c1);
-  blinkChar(1, c2);
-  blinkChar(0,' ');
-  blinkChar(3,' ');
+	blinkChar(0, ' ');
+	blinkChar(1, c1);
+	blinkChar(2, c2);
+	blinkChar(3, ' ');
 #else
 	blinkChar(1, c1);
 	blinkChar(0, c2);
@@ -232,39 +263,43 @@ void Display7::blinkCharacters(char c1, char c2) {
 }
 
 void Display7::blinkCharacters(char c1, char c2, char c3, char c4) {
-  blinkChar(1, c1);
-  blinkChar(0, c2);
-  blinkChar(2, c3);
-  blinkChar(3, c4);
+	blinkChar(0, c1);
+	blinkChar(1, c2);
+	blinkChar(2, c3);
+	blinkChar(3, c4);
 }
 
 void Display7::dispError(char c2) {
+
 #ifdef DIGITS4
-  blinkChar(2, 'E');
-  blinkChar(1, c2);
-  blinkChar(0,' ');
-  blinkChar(3,' ');
+	blinkChar(0, ' ');
+	blinkChar(1, 'E');
+	blinkChar(2, c2);
+	blinkChar(3, ' ');
 #else
-  blinkChar(1, 'E');
+	blinkChar(1, 'E');
 	blinkChar(0, c2);
 #endif
 }
 
 void Display7::dispNumber(int n) {
-  setDecPoint(BW,false);
-  setDecPoint(FW,false);
+	if (millis() < _blockTime)
+		return;
+
+	setDecPoint(BW, false);
+	setDecPoint(FW, false);
 #ifdef DIGITS4
-  if ((n >= 10000) || (n < 0)) {
-    // error
-    dispChar(2, '-');
-    dispChar(1, '-');
-  } else {
-    int z = n / 10;
-    dispChar(2, '0' + z);
-    dispChar(1, '0' + (n - 10 * z));
-  }
-  dispChar(0,' ');
-  dispChar(3,' ');
+	if ((n >= 10000) || (n < 0)) {
+		// error
+		dispChar(1, '-');
+		dispChar(2, '-');
+	} else {
+		int z = n / 10;
+		dispChar(1, '0' + z);
+		dispChar(2, '0' + (n - 10 * z));
+	}
+	dispChar(0, ' ');
+	dispChar(3, ' ');
 #else
 	if ((n >= 100) || (n < 0)) {
 		// error
@@ -279,32 +314,34 @@ void Display7::dispNumber(int n) {
 }
 
 void Display7::dispNumberSigned(int nsigned, bool backward) {
-  dispNumber(abs(nsigned)); // decimal points are blanked here
-  // now set the FW or BW LED
-  if (backward) {
-     setDecPoint(BW,true);
-     setDecPoint(FW,false);
-  } else {
-     setDecPoint(BW,false);
-     setDecPoint(FW,true);
-  }
+	if (millis() < _blockTime)
+		return;
+	dispNumber(abs(nsigned)); // decimal points are blanked here
+	// now set the FW or BW LED
+	if (backward) {
+		setDecPoint(BW, true);
+		setDecPoint(FW, false);
+	} else {
+		setDecPoint(BW, false);
+		setDecPoint(FW, true);
+	}
 }
-   
+
 void Display7::dispBlinkNumber(int n) {
-	setDecPoint(BW,false);
-	setDecPoint(FW,false);
+	setDecPoint(BW, false);
+	setDecPoint(FW, false);
 #ifdef DIGITS4
-  if ((n >= 10000) || (n < 0)) {
-    // error
-    blinkChar(2, '-');
-    blinkChar(1, '-');
-  } else {
-    int z = n / 10;
-    blinkChar(2, '0' + z);
-    blinkChar(1, '0' + (n - 10 * z));
-    dispChar(0,' ');
-    dispChar(3,' ');
-  }
+	if ((n >= 10000) || (n < 0)) {
+		// error
+		blinkChar(1, '-');
+		blinkChar(2, '-');
+	} else {
+		int z = n / 10;
+		blinkChar(1, '0' + z);
+		blinkChar(2, '0' + (n - 10 * z));
+		dispChar(0, ' ');
+		dispChar(3, ' ');
+	}
 #else
 	if ((n >= 100) || (n < 0)) {
 		// error
@@ -318,7 +355,6 @@ void Display7::dispBlinkNumber(int n) {
 #endif
 }
 
-
 void Display7::setFlicker(bool fliOn) {
 	_flickerOn = fliOn;
 }
@@ -330,5 +366,4 @@ void Display7::setDim(bool di) {
 bool Display7::isDimming() {
 	return _dim;
 }
-
 

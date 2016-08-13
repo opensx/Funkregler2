@@ -32,8 +32,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_22
-#define SW_STRING "SW_0.22"
+#define SW_REV_0_23
+#define SW_STRING "SW_0.23"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -348,14 +348,15 @@ void connectToWiFi() {
 
 void updateBuffer() {
 	IPAddress ip = WiFi.localIP();
+	uint32_t secs = millis() / 1000;
 	int rssi = WiFi.RSSI();
 	batteryVoltage = (map(analogRead(BATT_PIN), 0, 1023, 0, VOLT_3300)); // mV on the divider
 	batteryVoltage = batteryVoltage * 2;                         //mV on Battery
 	//batteryState = map(batteryVoltage , 3200, 4250, 0, 100);              //% of charge
 	char rev[] = HW_STRING ":" SW_STRING;
 	//int secs = (int) (millis() / 1000);
-	sprintf(buffer, "A FUNKR2 %d.%d.%d.%d %d %d %s %d", ip[0], ip[1], ip[2],
-			ip[3], batteryVoltage, rssi, rev, mode);
+	sprintf(buffer, "A FUNKR2 %d.%d.%d.%d %d %d %s %s %d", ip[0], ip[1], ip[2],
+			ip[3], batteryVoltage, rssi, rev, secs, mode);
 }
 
 void readUdp() {
@@ -544,63 +545,37 @@ void interpretCommand(String s) {
 	}
 }
 
-void f0Clicked() {
+void functionClicked (uint8_t index) {
 #ifdef _DEBUG
-	Serial.println("F0 clicked.");
+	Serial.print("F");
+	Serial.print(index);
+	Serial.println(" clicked.");
 #endif
 	if (mode == MODE_NORMAL) {  // ignore in other modes
-		loco.toggleF0();
+		uint8_t val = loco.toggleFunction(index);
+		disp.dispCharacters('F','0'+index,' ','0'+val, 1000);
 		changedFlag = true;
 	}
 	userInteraction();  // reset switch off timer
+}
+void f0Clicked() {
+	functionClicked(0);
 }
 
 void f1Clicked() {
-#ifdef _DEBUG
-	Serial.println("F1 clicked.");
-#endif
-	if (mode == MODE_NORMAL) {
-		loco.toggleF1();
-		changedFlag = true;
-
-	}
-	userInteraction();  // reset switch off timer
+	functionClicked(1);
 }
 
 void f2Clicked() {
-#ifdef _DEBUG
-  Serial.println("F2 clicked.");
-#endif
-  if (mode == MODE_NORMAL) {
-    loco.toggleF2();
-    changedFlag = true;
-
-  }
-  userInteraction();  // reset switch off timer
+	functionClicked(2);
 }
 
 void f3Clicked() {
-#ifdef _DEBUG
-  Serial.println("F3 clicked.");
-#endif
-  if (mode == MODE_NORMAL) {
-    loco.toggleF3();
-    changedFlag = true;
-
-  }
-  userInteraction();  // reset switch off timer
+	functionClicked(3);
 }
 
 void f4Clicked() {
-#ifdef _DEBUG
-  Serial.println("F4 clicked.");
-#endif
-  if (mode == MODE_NORMAL) {
-    loco.toggleF4();
-    changedFlag = true;
-
-  }
-  userInteraction();  // reset switch off timer
+	functionClicked(4);
 }
 
 void stopClicked() {

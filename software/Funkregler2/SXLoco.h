@@ -12,15 +12,13 @@ public:
 	SXLoco();
 	SXLoco(int);
 
-    void toggleF0(void);
+	uint8_t toggleF0(void);
     uint8_t getF0(void);
     
-    void toggleF1(void);
+    uint8_t toggleF1(void);
     uint8_t getF1(void);
 
-    void toggleF2(void);
-    void toggleF3(void);
-    void toggleF4(void);
+    uint8_t toggleFunction(uint8_t i);
     
     void setSpeed(int);  // speed (signed)
     int getSpeed(void);  // speed (signed)

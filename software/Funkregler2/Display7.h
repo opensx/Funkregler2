@@ -21,14 +21,13 @@
 #define D_OFF    0
 #define BLINK    2      // set 2 for blinking (0=off, 1=on)
 
-
 class Display7 {
 
 public:
 	Display7(void);
 	void init(void);
 	void switchOn(int digit);  // switch on left or right display
-	void setDecPoint(int disp, bool on);  // switch on/off decimal point left or right
+	void setDecPoint(int disp, bool on); // switch on/off decimal point left or right
 	void decBlink(int disp);   // set the decimal point to blink
 	void doDisplay(int digit);
 	void switchOff();
@@ -36,35 +35,32 @@ public:
 	void blinkChar(int d, char c);
 
 	void dispCharacters(char c1, char c2);
-  void dispCharacters(char c1, char c2, char c3, char c4);
-  
+	void dispCharacters(char c1, char c2, uint32_t block);
+	void dispCharacters(char c1, char c2, char c3, char c4);
+	void dispCharacters(char c1, char c2, char c3, char c4, uint32_t block);
 	void blinkCharacters(char c1, char c2);
-  void blinkCharacters(char c1, char c2, char c3, char c4);
+	void blinkCharacters(char c1, char c2, char c3, char c4);
 	void dispError(char c2);   // 'Ec2' blinking
 	void dispNumber(int n);
-  void dispNumberSigned(int n, bool back);
+	void dispNumberSigned(int n, bool back);
 	void dispBlinkNumber(int n);
-	void setDim(bool);
-	bool isDimming();
+	void setDim(bool);bool isDimming();
 	void setFlicker(bool);
 	void test(void);
 
 private:
 
-    bool _flickerOn;
-    bool _dim;
-    
- #ifdef DIGITS4
-    volatile int _segmentOn[4][NSEG];  // [1 (leftmost),2,3,4][ a b .... DP]
-#else
-    volatile int _segmentOn[2][NSEG];  // [right/left][ a b .... DP]
-#endif
+	bool _flickerOn;
+	bool _dim;
+	uint32_t _blockTime;   // block display for some milliseconds
 
+#ifdef DIGITS4
+	volatile int _segmentOn[4][NSEG];  // [0 (leftmost),1,2,3][ a b .... DP]
+#else
+	volatile int _segmentOn[2][NSEG];  // [right/left][ a b .... DP]
+#endif
 
 };
 
-
-
 #endif /* DISPLAY7_H_ */
-
 
