@@ -4,15 +4,17 @@
 
 #Funkregler2.ino
 
-version for MKR1000 and 2 digit 7-segment display
+version for MKR1000 and 2 (or 4) digit 7-segment display
 
 BETA Version - don't use.
 
-Hardware rev. 0.3
+Hardware rev. 0.3 and rev. DCC-0.1
 
 - Rotary Encoder für Speed und Adress Selection
 - Buttons für Adress-Selection ("A"), Licht (F0="L") und Function (F1="F")
+- DCC-Version: Buttons for A and F0 ... F4
 
+13 Aug 2016 - for DCC HW 
 08 Aug 2016 - initial Version
 
 #Libraries needed
@@ -23,6 +25,7 @@ Hardware rev. 0.3
 - Eeprom24C32_64
 - Timer5  (timer for SAMD)
 - Adafruit_SleepyDog
+- AnalogButtons (for DCC HW with 6 Buttons)
 
 You can use the "library manager" of the arduino IDE to install the 
 libraries, see
