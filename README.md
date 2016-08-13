@@ -9,3 +9,6 @@ Vorteile:
 * kompakter (FRED Formfaktor)
 * mit 7-Seg Anzeige
 
+<img src="funkregler2-mit-ohne-gehaeuse_kl.jpg">Funkregler2</img>
+
+siehe auch <a href="http://opensx.net/funkregler2">Funkregler2 auf opensx.net</a>
