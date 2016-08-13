@@ -71,6 +71,10 @@ void SXLoco::toggleF1() {
    _changed=1;
 }
 
+void SXLoco::toggleF2() {};   // there are no functions F2, F3, F4 with Selectrix
+void SXLoco::toggleF3() {};
+void SXLoco::toggleF4() {};
+
 uint8_t SXLoco::getF1() {
    return bitRead(_sxData,7);
 }

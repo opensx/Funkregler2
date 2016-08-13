@@ -17,6 +17,10 @@ public:
     
     void toggleF1(void);
     uint8_t getF1(void);
+
+    void toggleF2(void);
+    void toggleF3(void);
+    void toggleF4(void);
     
     void setSpeed(int);  // speed (signed)
     int getSpeed(void);  // speed (signed)

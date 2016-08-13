@@ -6,6 +6,7 @@
  Rotary Encoder for Speed and Address Selection
  Buttons for Start-Address-Selection ("A"), Light (F0="L") and Function (F1="F")
 
+ 13 August 2016  hw-ddc-0.1 added with analog buttons for F0..F4
  06 August 2016  hw-rev 0.3 added, refactored addr selection and eeprom usage
  30 July 2016    added "wifi-lost" check
  29 July 2016    initial version for HWREV 0.2a
@@ -18,12 +19,9 @@
 #include <WiFiUdp.h>
 
 #include <OneButton.h>
+#include <AnalogButtons.h>
 #include <Timer5.h>
 #include <Adafruit_SleepyDog.h>
-
-#ifdef HWREV_D_0_1
-#include <AnalogButton.h>
-#endif
 
 #include "pcb-type.h"  
 #include "FunkrEEPROM.h"
@@ -34,8 +32,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_21
-#define SW_STRING "SW_0.21"
+#define SW_REV_0_22
+#define SW_STRING "SW_0.22"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -70,8 +68,18 @@ FunkrEEPROM eep;
 //************* Buttons ****************************************
 OneButton addrBtn(ADDR_BTN, true);
 OneButton stopBtn(STOP_BTN, true);
+#ifdef HWREV_D_0_1
+AnalogButtons analogButtons = AnalogButtons(A5, INPUT, 2, 20);
+Button f0Btn = Button(856, &f0Clicked);
+Button f1Btn = Button(709, &f1Clicked);
+Button f2Btn = Button(10, &f2Clicked, &switchOffBatt, 5000);
+Button f3Btn = Button(522, &f3Clicked);
+Button f4Btn = Button(335, &f4Clicked);
+#else
 OneButton f0Btn(F0_BTN, true);
 OneButton f1Btn(F1_BTN, true);
+#endif
+
 bool changedFlag = false;  // if true, an update Message needs to be sent
 
 char packetBuffer[255]; //buffer to hold incoming packet
@@ -146,7 +154,7 @@ void setup() {
 
 	initButtons();
 
-	analogReadResolution(12);
+	analogReadResolution(10);
 
 	disp.init();
 
@@ -180,6 +188,12 @@ void setup() {
 
 void initButtons() {
 #ifdef HWREV_D_0_1
+
+  analogButtons.add(f0Btn);
+  analogButtons.add(f1Btn);
+  analogButtons.add(f2Btn);
+  analogButtons.add(f3Btn);
+  analogButtons.add(f4Btn);
 #else
   pinMode(F0_BTN, INPUT_PULLUP);
   pinMode(F1_BTN, INPUT_PULLUP);
@@ -335,10 +349,10 @@ void connectToWiFi() {
 void updateBuffer() {
 	IPAddress ip = WiFi.localIP();
 	int rssi = WiFi.RSSI();
-	batteryVoltage = (map(analogRead(BATT_PIN), 0, 4097, 0, VOLT_3300)); // mV on the divider
+	batteryVoltage = (map(analogRead(BATT_PIN), 0, 1023, 0, VOLT_3300)); // mV on the divider
 	batteryVoltage = batteryVoltage * 2;                         //mV on Battery
 	//batteryState = map(batteryVoltage , 3200, 4250, 0, 100);              //% of charge
-	char rev[] = HW_STRING " - " SW_STRING;
+	char rev[] = HW_STRING ":" SW_STRING;
 	//int secs = (int) (millis() / 1000);
 	sprintf(buffer, "A FUNKR2 %d.%d.%d.%d %d %d %s %d", ip[0], ip[1], ip[2],
 			ip[3], batteryVoltage, rssi, rev, mode);
@@ -553,6 +567,42 @@ void f1Clicked() {
 	userInteraction();  // reset switch off timer
 }
 
+void f2Clicked() {
+#ifdef _DEBUG
+  Serial.println("F2 clicked.");
+#endif
+  if (mode == MODE_NORMAL) {
+    loco.toggleF2();
+    changedFlag = true;
+
+  }
+  userInteraction();  // reset switch off timer
+}
+
+void f3Clicked() {
+#ifdef _DEBUG
+  Serial.println("F3 clicked.");
+#endif
+  if (mode == MODE_NORMAL) {
+    loco.toggleF3();
+    changedFlag = true;
+
+  }
+  userInteraction();  // reset switch off timer
+}
+
+void f4Clicked() {
+#ifdef _DEBUG
+  Serial.println("F4 clicked.");
+#endif
+  if (mode == MODE_NORMAL) {
+    loco.toggleF4();
+    changedFlag = true;
+
+  }
+  userInteraction();  // reset switch off timer
+}
+
 void stopClicked() {
 #ifdef _DEBUG
 	Serial.println("Stop clicked.");
@@ -601,8 +651,12 @@ void loop() {
 	encoder.tick();
 	stopBtn.tick();
 	addrBtn.tick();
+#ifdef HWREV_D_0_1
+  analogButtons.check();
+#else
 	f0Btn.tick();
 	f1Btn.tick();
+#endif
 
 	readUdp();
 
