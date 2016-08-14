@@ -253,6 +253,7 @@ bool initFromEEPROM() {
 	myid = eep.readID();
 	if (myid == 0xffff) {
 		// not yet set
+		randomSeed(analogRead(A0));
 		myid = random(1000);
 		eep.writeID(myid);
 	}
@@ -403,6 +404,7 @@ void readUdp() {
 }
 
 void sendAnnounceMessage() {
+	static int counter = 0;
 	if ((WiFi.status() == WL_CONNECTED) && (WiFi.RSSI() > -80)
 			&& (WiFi.RSSI() != 0)) {
 		// wifi is o.k., we can send a message
@@ -411,7 +413,7 @@ void sendAnnounceMessage() {
 		Udp.beginPacket(lanbahnip, lanbahnport);
 		Udp.write(buffer);
 		Udp.endPacket();
-
+        counter = 0;
 	} else {
 
 #ifdef _DEBUG
@@ -419,7 +421,10 @@ void sendAnnounceMessage() {
 		Serial.print("rss=");
 		Serial.println(WiFi.RSSI());
 #endif
-		reconnectToWiFi();
+		counter++;
+		if (counter >= 3) {
+		   reconnectToWiFi();
+		}
 	}
 }
 
@@ -911,10 +916,11 @@ void printConfig(void) {
 	Serial.print("lastLoco=");
 	uint16_t last = eep.readLastLoco();
 	Serial.print(last);
+
 	Serial.print("  locos=");
 	String ll = addrSel.getLocos();
 	ll.trim();
-	Serial.println(ll);
+	Serial.print(ll);
 	//Serial.print("  cc=");
 	//String s = s_ccmode[ccmode];
 	//Serial.println(s);
