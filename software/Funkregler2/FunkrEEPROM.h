@@ -18,16 +18,17 @@
 
 
 //******* EEPROM DEFINES ***********************************************
-#define MAX_STRING_LEN  30       // reason: Wire library, max i2c message
+#define MAX_STRING_LEN  30       //
 
 #define EEPROM_SSID       100     // EEPROM addresses, non-overlapping ...
                                   // strings of length 30 are stored here
 #define EEPROM_PASS       140
 #define EEPROM_LOCOLIST   180
-
 #define EEPROM_CCMODE     220    // 2 bytes
 #define EEPROM_LAST_LOCO  230    // 2 bytes, address of last selected loco
-#define EEPROM_ADDR_MODE  240    // 2 bytes Mode = all or = single
+#define EEPROM_ADDR_MODE  240    // 2 bytes Mode = all or = single   */
+#define EEPROM_VOLT       260    // for AD calibration
+#define EEPROM_ID         280    // unique ID for every throttle
 
 
 class FunkrEEPROM {
@@ -50,6 +51,12 @@ public:
 
     bool writeAddrMode(uint16_t);
     uint16_t readAddrMode(void);
+
+    bool writeID(uint16_t);
+    uint16_t readID(void);
+
+    bool writeVoltCalibration(uint16_t);
+    uint16_t readVoltCalibration(void);
 
 
 private:

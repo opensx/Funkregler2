@@ -12,7 +12,7 @@
 
 // all characters we can display
 static char _ch[NCHAR] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-		'A', 'C', 'c', 'E', 'F', 'o', '-', ' ' };
+		'A', 'C', 'c', 'E', 'F', 'o', '-', ' ', '=' };
 
 // segments to switch on for a character (segment 1= bottom)
 static int _number[NCHAR][7] = { { 1, 1, 1, 1, 1, 1, 0 },  // 0
@@ -32,7 +32,8 @@ static int _number[NCHAR][7] = { { 1, 1, 1, 1, 1, 1, 0 },  // 0
 		{ 0, 1, 1, 1, 0, 0, 1 },  // F
 		{ 1, 1, 0, 0, 0, 1, 1 },  // o
 		{ 0, 0, 0, 0, 0, 0, 1 },  // -
-		{ 0, 0, 0, 0, 0, 0, 0 }   // blank
+		{ 0, 0, 0, 0, 0, 0, 0 },  // blank
+    { 1, 0, 0, 0, 0, 0, 1 }   // =
 };
 
 // pins on arduino to drive segments, active low

@@ -32,8 +32,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_23
-#define SW_STRING "SW_0.23"
+#define SW_REV_0_24
+#define SW_STRING "SW_0.24"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -108,7 +108,7 @@ uint8_t trackPower = POWER_UNKNOWN;  // or POWER_OFF, POWER_ON
 long encButtonTimer = 0;   // to check for LONG PRESS of encoder button
 uint8_t encButtonPressed = 0;
 
-int wifi_retries = 0;
+int wifiRetries = 0;
 
 // ************ network and other string variables, read from EEPROM later
 String ssid;
@@ -118,9 +118,13 @@ uint16_t ccmode = CCMODE_SX;
 
 SXLoco loco;   // construct an SXloco with address etc
 
+uint16_t cal_33 = VOLT_3300;   // battery meas. cal constant
+uint16_t myid = 0;
+
 void setup() {
 	// define frequency of interrupt
-	MyTimer5.begin(200);  // 200=for toggle every 5msec
+	MyTimer5.begin(IRQ_FREQ);  // 200=for toggle every 5msec => 2  digits
+							   // 400 for 4 digit display to avoid flicker
 	// define the interrupt callback function
 	MyTimer5.attachInterrupt(display_irq);
 	// start the timer
@@ -139,10 +143,6 @@ void setup() {
 		// Watchdog.reset();   // no watchdog enabled so far
 		delay(100);
 	}
-
-	Serial.println("Funkregler2");
-	Serial.println(HW_STRING);
-	Serial.println(SW_STRING);
 
 #endif
 
@@ -183,26 +183,26 @@ void setup() {
 		printConfigHelp();
 #endif
 	}
-	Watchdog.enable(4000);
+	Watchdog.enable(8192);
 }
 
 void initButtons() {
 #ifdef HWREV_D_0_1
 
-  analogButtons.add(f0Btn);
-  analogButtons.add(f1Btn);
-  analogButtons.add(f2Btn);
-  analogButtons.add(f3Btn);
-  analogButtons.add(f4Btn);
+	analogButtons.add(f0Btn);
+	analogButtons.add(f1Btn);
+	analogButtons.add(f2Btn);
+	analogButtons.add(f3Btn);
+	analogButtons.add(f4Btn);
 #else
-  pinMode(F0_BTN, INPUT_PULLUP);
-  pinMode(F1_BTN, INPUT_PULLUP);
-  f0Btn.attachClick(f0Clicked);
-  f0Btn.setClickTicks(100);  // click detected after xx ms
-  f1Btn.attachClick(f1Clicked);
-  f1Btn.setClickTicks(100);
-  f1Btn.setPressTicks(5000); // 5 secs for long press => switch off
-  f1Btn.attachLongPressStart(switchOffBatt);
+	pinMode(F0_BTN, INPUT_PULLUP);
+	pinMode(F1_BTN, INPUT_PULLUP);
+	f0Btn.attachClick(f0Clicked);
+	f0Btn.setClickTicks(100);  // click detected after xx ms
+	f1Btn.attachClick(f1Clicked);
+	f1Btn.setClickTicks(100);
+	f1Btn.setPressTicks(5000);// 5 secs for long press => switch off
+	f1Btn.attachLongPressStart(switchOffBatt);
 #endif
 
 	pinMode(ADDR_BTN, INPUT_PULLUP);
@@ -241,6 +241,22 @@ bool initFromEEPROM() {
 	uint16_t addr = addrSel.initFromEEPROM();
 	loco.setAddress(addr);
 
+	// ***** read A/D calibration constant
+	cal_33 = eep.readVoltCalibration();
+	if ((cal_33 < 3000) || (cal_33 > 3500)) {  //makes no sense
+		// not yet set
+		eep.writeVoltCalibration(VOLT_3300);
+		cal_33 = VOLT_3300;
+	}
+
+	// ***** read ID
+	myid = eep.readID();
+	if (myid == 0xffff) {
+		// not yet set
+		myid = random(1000);
+		eep.writeID(myid);
+	}
+
 #ifdef _DEBUG
 	printConfig();
 #endif
@@ -270,17 +286,30 @@ bool initFromEEPROM() {
 void reconnectToWiFi() {
 	// Connect to WPA/WPA2 network:
 	WiFi.begin(ssid, pass);
-	wifi_retries++;
-	delay(1000);
+	wifiRetries++;
+	Watchdog.reset();
+	delay(500);  // wait 1 seconds
+	Watchdog.reset();
+	delay(500);  // wait
 	Udp.beginMulti(lanbahnip, lanbahnport);
 	m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
 
 	Serial.print("trying reconnect, millis=");
 	Serial.println(millis());
 	Serial.print("#retries=");
-	Serial.println(wifi_retries);
+	Serial.println(wifiRetries);
 
-	delay(2000);  // wait 2 seconds
+	// wait 2 seconds
+	Watchdog.reset();
+	delay(500);  // wait
+	Watchdog.reset();
+	delay(500);  // wait
+	Watchdog.reset();
+	delay(500);  // wait
+	Watchdog.reset();
+	delay(500);  // wait
+
+	mode = MODE_NORMAL;
 
 }
 
@@ -292,10 +321,10 @@ void connectToWiFi() {
 	Serial.print("  pass=");
 	Serial.print(pass);
 	Serial.print("  #=");
-	Serial.println(wifi_retries);
+	Serial.println(wifiRetries);
 #endif
 #ifdef DIGITS4
-  disp.blinkCharacters('1', '2', '3', '4');
+	disp.blinkCharacters('1', '2', '3', '4');
 #else
 	disp.blinkCharacters('-', '-');
 #endif
@@ -304,7 +333,7 @@ void connectToWiFi() {
 	while ((WiFi.status() != WL_CONNECTED) && (connectCounter < 3)) {
 		// Connect to WPA/WPA2 network:
 		WiFi.begin(ssid, pass);
-		wifi_retries++;
+		wifiRetries++;
 		Watchdog.reset();
 		delay(500);  // wait
 
@@ -315,7 +344,7 @@ void connectToWiFi() {
 		Serial.print("trying connect, millis=");
 		Serial.println(millis());
 		Serial.print("#retries=");
-		Serial.println(wifi_retries);
+		Serial.println(wifiRetries);
 #endif
 		connectCounter++;
 
@@ -348,15 +377,15 @@ void connectToWiFi() {
 
 void updateBuffer() {
 	IPAddress ip = WiFi.localIP();
-	uint32_t secs = millis() / 1000;
+	unsigned long secs = millis() / 1000;  // type of secs because of sprintf
 	int rssi = WiFi.RSSI();
-	batteryVoltage = (map(analogRead(BATT_PIN), 0, 1023, 0, VOLT_3300)); // mV on the divider
+	batteryVoltage = (map(analogRead(BATT_PIN), 0, 1023, 0, cal_33)); // mV on the divider
 	batteryVoltage = batteryVoltage * 2;                         //mV on Battery
 	//batteryState = map(batteryVoltage , 3200, 4250, 0, 100);              //% of charge
 	char rev[] = HW_STRING ":" SW_STRING;
 	//int secs = (int) (millis() / 1000);
-	sprintf(buffer, "A FUNKR2 %d.%d.%d.%d %d %d %s %s %d", ip[0], ip[1], ip[2],
-			ip[3], batteryVoltage, rssi, rev, secs, mode);
+	sprintf(buffer, "A FUNKR%d %d.%d.%d.%d %d %d %s %lu %d", myid, ip[0], ip[1],
+			ip[2], ip[3], batteryVoltage, rssi, rev, secs, wifiRetries);
 }
 
 void readUdp() {
@@ -384,12 +413,13 @@ void sendAnnounceMessage() {
 		Udp.endPacket();
 
 	} else {
-		/*
-		 #ifdef _DEBUG
-		 Serial.println("ERROR: wifi connection lost, rssi low or zero");
-		 Serial.print("rss=");
-		 Serial.println(WiFi.RSSI());
-		 #endif    */
+
+#ifdef _DEBUG
+		Serial.println("ERROR: wifi connection lost, rssi low or zero");
+		Serial.print("rss=");
+		Serial.println(WiFi.RSSI());
+#endif
+		reconnectToWiFi();
 	}
 }
 
@@ -398,8 +428,9 @@ void sendAnnounceMessage() {
 void display_irq(void) {
 	static int d = 0;
 #ifdef DIGITS4
-  d++ ;
-  if (d >= 4) d = 0;
+	d++;
+	if (d >= 4)
+		d = 0;
 #else
 	if (d == 0) {
 		d = 1;
@@ -545,7 +576,7 @@ void interpretCommand(String s) {
 	}
 }
 
-void functionClicked (uint8_t index) {
+void functionClicked(uint8_t index) {
 #ifdef _DEBUG
 	Serial.print("F");
 	Serial.print(index);
@@ -553,7 +584,7 @@ void functionClicked (uint8_t index) {
 #endif
 	if (mode == MODE_NORMAL) {  // ignore in other modes
 		uint8_t val = loco.toggleFunction(index);
-		disp.dispCharacters('F','0'+index,' ','0'+val, 1000);
+		disp.dispCharacters('F', '0' + index, '=', '0' + val, 1000);
 		changedFlag = true;
 	}
 	userInteraction();  // reset switch off timer
@@ -627,7 +658,7 @@ void loop() {
 	stopBtn.tick();
 	addrBtn.tick();
 #ifdef HWREV_D_0_1
-  analogButtons.check();
+	analogButtons.check();
 #else
 	f0Btn.tick();
 	f1Btn.tick();
@@ -729,7 +760,7 @@ void loop() {
 			disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
 		} else {
 			if (Serial.available() > 0) {
-				String line = Serial.readStringUntil('\n');  // has 1 second timeout
+				String line = Serial.readStringUntil('\n'); // has 1 second timeout
 				line.toLowerCase();
 				userInteraction(); // reset switch off timer
 				Watchdog.reset();
@@ -857,28 +888,39 @@ void printWifi(void) {
 
 void printConfig(void) {
 	Serial.println("current config settings ----------------------");
+
 	Serial.print("hw=");
 	Serial.print(HW_STRING);
 	Serial.print("  sw=");
-	Serial.println(SW_STRING);
+	Serial.print(SW_STRING);
+	Serial.print("  myid=");
+	Serial.println(myid);
+
 	Serial.print("ssid=");
 	Serial.print(ssid);
-	Serial.print("  pass=");
-	Serial.println(pass);
+	Serial.println("  pass=******");
+
 	Serial.print("locoAdr=");
-	Serial.print(loco.getAddress());
+	uint16_t a = loco.getAddress();
+	Serial.print(a);
+
 	Serial.print("  addrmode=");
 	String m = addrSel.getModeString();
 	Serial.println(m);
+
 	Serial.print("lastLoco=");
 	uint16_t last = eep.readLastLoco();
 	Serial.print(last);
 	Serial.print("  locos=");
 	String ll = addrSel.getLocos();
+	ll.trim();
 	Serial.println(ll);
 	//Serial.print("  cc=");
 	//String s = s_ccmode[ccmode];
 	//Serial.println(s);
+
+	Serial.print("  batt-cal=");
+	Serial.println(cal_33);
 	Serial.println("----------------------------------------------");
 }
 

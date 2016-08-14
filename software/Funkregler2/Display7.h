@@ -14,7 +14,7 @@
 #include <Arduino.h>
 #include "pcb-type.h"
 
-#define NCHAR   18
+#define NCHAR   19
 #define NSEG     8      // a   b   c  d   e  f  g  DP
 #define DP_SEG   7
 #define D_ON     1

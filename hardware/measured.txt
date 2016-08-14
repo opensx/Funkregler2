@@ -1,0 +1,9 @@
+LED Display current measurement
+
+The 2-Digit display Kingbright SA39-11RT is much brighter than the 4 digit
+display Lumex LDQ-N284RI (even when taking into account that the duty cycle
+is 50% (for 2 digits) vs 25% (for 4 digits).
+The resistors in series with the LEDs can be 330 Ohm fo the 2 digit disp.
+For the 4-digit disp, a current of 3.6mA was measured with 330 and 4.7mA with a
+220 resistor. It can be even decreased to 180 Ohm, which would result in
+~6.7mA (below the max current of the SAMD21, which is 7mA)

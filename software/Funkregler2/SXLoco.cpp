@@ -15,16 +15,18 @@ SXLoco::SXLoco() {
 	_address = 3;
 	_sxData = 0;
 	_changed = 1;
+	_speed = 0;
 }
 
-SXLoco::SXLoco(int a) {
-	if ((a > 0) && (a <= 103)) {
+SXLoco::SXLoco(int16_t a) {
+	if ((a > 0) && (a <= 103)) {   //TODO must be changed for DCC
 		_address = (uint8_t) a;
 	} else {
 		_address = 3;
 	}
 	_sxData = 0;
 	_changed = 1;
+	_speed = 0;
 }
 
 uint8_t SXLoco::hasChanged() {
@@ -40,8 +42,8 @@ void SXLoco::stop() {
 	_changed = 1;
 }
 
-int SXLoco::getSpeed() {
-	int s = _sxData & 0x1F; // positive
+int16_t SXLoco::getSpeed() {
+	int16_t s = _sxData & 0x1F; // positive
 	if (bitRead(_sxData, 5)) {
 		return -s;
 	} else {
@@ -99,11 +101,11 @@ void SXLoco::setBackward(bool b) {
 	}
 }
 
-int SXLoco::getAddress() {
+uint16_t SXLoco::getAddress() {
 	return _address;
 }
 
-int SXLoco::setAddress(int a) {
+uint16_t SXLoco::setAddress(uint16_t a) {
 	if ((a > 0) && (a <= 103)) {
 		_address = (uint8_t) a;
 	} else {
@@ -125,7 +127,7 @@ void SXLoco::setFromSXData(uint8_t data) {
 /** set the speed from number -31 .. +31
  *  
  */
-void SXLoco::setSpeed(int sp) {
+void SXLoco::setSpeed(int16_t sp) {  //TODO must be changed for DCC
 	//Serial.print("SXLoco.setSpeed, sp=");
 	//Serial.println(sp);
 

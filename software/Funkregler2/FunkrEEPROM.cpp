@@ -65,7 +65,21 @@ uint16_t FunkrEEPROM::readLastLoco(void) {
 	return readConfigUInt16((word) EEPROM_LAST_LOCO) ;
 }
 
+bool FunkrEEPROM::writeID(uint16_t a) {
+	return writeConfigUInt16((word) EEPROM_ID, a) ;
+}
 
+uint16_t FunkrEEPROM::readID(void) {
+	return readConfigUInt16((word) EEPROM_ID) ;
+}
+
+bool FunkrEEPROM::writeVoltCalibration(uint16_t a) {
+	return writeConfigUInt16((word) EEPROM_VOLT, a) ;
+}
+
+uint16_t FunkrEEPROM::readVoltCalibration(void) {
+	return readConfigUInt16((word) EEPROM_VOLT) ;
+}
 /**
  * write a (non-empty) config string to EEPROM
  */
