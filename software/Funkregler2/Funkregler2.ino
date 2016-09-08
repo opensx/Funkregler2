@@ -33,8 +33,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_24
-#define SW_STRING "SW_0.24"
+#define SW_REV_0_25
+#define SW_STRING "SW_0.25"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
