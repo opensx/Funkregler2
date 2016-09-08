@@ -229,6 +229,7 @@ void Display7::dispCharacters(char c1, char c2, uint32_t block) {
 #endif
 }
 
+#ifdef DIGITS4
 void Display7::dispCharacters(char c1, char c2, char c3, char c4) {
 	if (millis() < _blockTime)
 		return;
@@ -250,6 +251,7 @@ void Display7::dispCharacters(char c1, char c2, char c3, char c4,
 	dispChar(3, c4);
 
 }
+#endif
 
 void Display7::blinkCharacters(char c1, char c2) {
 #ifdef DIGITS4
@@ -263,12 +265,14 @@ void Display7::blinkCharacters(char c1, char c2) {
 #endif
 }
 
+#ifdef DIGITS4
 void Display7::blinkCharacters(char c1, char c2, char c3, char c4) {
 	blinkChar(0, c1);
 	blinkChar(1, c2);
 	blinkChar(2, c3);
 	blinkChar(3, c4);
 }
+#endif
 
 void Display7::dispError(char c2) {
 

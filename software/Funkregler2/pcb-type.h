@@ -15,7 +15,6 @@
 
 #define MAX 31         // Selectrix
 //#define MAX 127     //DCC
-#define LOCO_COMMAND    "TEST2" //"LOCO 798"
 #define MAX_LOCO_ADDRESS    99   // for selectrix
 
 #define _DEBUG           // if debug => output to Serial Port

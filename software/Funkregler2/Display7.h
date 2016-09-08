@@ -36,10 +36,13 @@ public:
 
 	void dispCharacters(char c1, char c2);
 	void dispCharacters(char c1, char c2, uint32_t block);
+  void blinkCharacters(char c1, char c2);
+  
+ #ifdef DIGITS4
 	void dispCharacters(char c1, char c2, char c3, char c4);
 	void dispCharacters(char c1, char c2, char c3, char c4, uint32_t block);
-	void blinkCharacters(char c1, char c2);
 	void blinkCharacters(char c1, char c2, char c3, char c4);
+ #endif
 	void dispError(char c2);   // 'Ec2' blinking
 	void dispNumber(int n);
 	void dispNumberSigned(int n, bool back);

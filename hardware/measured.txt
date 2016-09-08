@@ -7,3 +7,6 @@ The resistors in series with the LEDs can be 330 Ohm fo the 2 digit disp.
 For the 4-digit disp, a current of 3.6mA was measured with 330 and 4.7mA with a
 220 resistor. It can be even decreased to 180 Ohm, which would result in
 ~6.7mA (below the max current of the SAMD21, which is 7mA)
+
+CPC1020N on-resistance
+The voltage drop was measured to be 20mV, when charging with 350mA => 30mOhm
