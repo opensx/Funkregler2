@@ -254,7 +254,6 @@ bool initFromEEPROM() {
 	myid = eep.readID();
 	if (myid == 0xffff) {
 		// not yet set
-		randomSeed(analogRead(A0));
 		myid = random(1000);
 		eep.writeID(myid);
 	}

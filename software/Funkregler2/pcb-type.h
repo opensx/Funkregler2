@@ -34,6 +34,7 @@
 #define ANODE1   A5
 #define ANODE2   A0
 
+
 #define ENC1    6   // first encoder pin
 #define ENC2    8   // second encoder pin
 
