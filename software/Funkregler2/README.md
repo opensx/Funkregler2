@@ -6,7 +6,7 @@
 
 version for MKR1000 and 2 (or 4) digit 7-segment display
 
-BETA Version - don't use.
+BETA Version 
 
 Hardware rev. 0.3 and rev. DCC-0.1
 
@@ -14,6 +14,7 @@ Hardware rev. 0.3 and rev. DCC-0.1
 - Buttons für Adress-Selection ("A"), Licht (F0="L") und Function (F1="F")
 - DCC-Version: Buttons for A and F0 ... F4
 
+15 Sep 2016 - improved config  
 13 Aug 2016 - for DCC HW 
 08 Aug 2016 - initial Version
 
