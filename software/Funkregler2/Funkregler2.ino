@@ -6,12 +6,13 @@
  Rotary Encoder for Speed and Address Selection
  Buttons for Start-Address-Selection ("A"), Light (F0="L") and Function (F1="F")
 
+ 27 Sept. 2016   click/doubleclick Adr-Btn
  08 Sept. 2016   using WiFi101 lib commit d27bf7c (fix for rssi=0)
  13 August 2016  hw-ddc-0.1 added with analog buttons for F0..F4
  06 August 2016  hw-rev 0.3 added, refactored addr selection and eeprom usage
  30 July 2016    added "wifi-lost" check
  29 July 2016    initial version for HWREV 0.2a
- 
+
  if _DEBUG is defined, there MUST BE A TERMINAL connected to the
 
  *****************************************************************/
@@ -24,7 +25,7 @@
 #include <Timer5.h>
 #include <Adafruit_SleepyDog.h>
 
-#include "pcb-type.h"  
+#include "pcb-type.h"
 #include "FunkrEEPROM.h"
 #include "Display7.h"
 #include "sxutils.h"  // includes debug settings
@@ -33,8 +34,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_25
-#define SW_STRING "SW_0.25"
+#define SW_REV_0_26
+#define SW_STRING "SW_0.26"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -45,10 +46,11 @@ String s_ccmode[N_CCMODE] = { "SX", "DCC" };
 
 //***** operating modes, changed by hitting the red "A" button *******
 #define MODE_NORMAL               0
-#define MODE_ADDRESS_SELECTION    1   // short press of "A" button
+#define MODE_ADDRESS_SELECTION    1   // double press of "A" button
 #define MODE_WAITING_FOR_RESPONSE 2   // waiting for loco info from central
 #define MODE_CONFIG               3   // for storing new values in EEPROM
 #define MODE_WAITING_FOR_WIFI     4   // not connected to wifi
+#define MODE_FAST_ADDRESS_SELECTION    5   // short press of "A" button
 
 #define BLOCKING_TIME  2000   // don#t read feedback from SX Bus for 2 secs
 // after sending new speed value
@@ -189,7 +191,6 @@ void setup() {
 
 void initButtons() {
 #ifdef HWREV_D_0_1
-
 	analogButtons.add(f0Btn);
 	analogButtons.add(f1Btn);
 	analogButtons.add(f2Btn);
@@ -205,12 +206,16 @@ void initButtons() {
 	f1Btn.setPressTicks(5000);// 5 secs for long press => switch off
 	f1Btn.attachLongPressStart(switchOffBatt);
 #endif
+   // addr-button and stop-button have a seperate input for all HARDWARE
+	// revisions to allow for doubleclick and long-press events (using the
+   // "OneButton" library)
 
 	pinMode(ADDR_BTN, INPUT_PULLUP);
 	pinMode(STOP_BTN, INPUT_PULLUP);
-	addrBtn.setClickTicks(100);
+	addrBtn.setClickTicks(300);
 	addrBtn.setPressTicks(5000); // 5 secs for long press => entering config mode
 	addrBtn.attachClick(addrClicked);
+   addrBtn.attachDoubleClick(addrDoubleClicked);
 	addrBtn.attachLongPressStart(toggleConfig);
 
 	stopBtn.attachClick(stopClicked);
@@ -294,10 +299,10 @@ void reconnectToWiFi() {
 	Watchdog.reset();
 	delay(500);  // wait
 	Udp.beginMulti(lanbahnip, lanbahnport);
- 
+
 	m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
   Serial.println("deep sleep ENABLED");
-  
+
 	Serial.print("trying reconnect, millis=");
 	Serial.println(millis());
 	Serial.print("#retries=");
@@ -452,6 +457,7 @@ void display_irq(void) {
 
 /** start address selection mode when address button is clicked
  *   release address mode when clicked again
+ *   uses only the address list stored in EEPROM
  */
 void addrClicked() {
 
@@ -462,40 +468,76 @@ void addrClicked() {
 	// toggle address/normal mode
 	switch (mode) {
 	case MODE_NORMAL:
-		mode = MODE_ADDRESS_SELECTION;
-		addrSel.start(loco.getAddress());
+		mode = MODE_FAST_ADDRESS_SELECTION;
+		addrSel.start(loco.getAddress(), false);   // multi-address mode
+		                                 // addresses from locolist only
 		break;
 
+	case MODE_FAST_ADDRESS_SELECTION:
 	case MODE_ADDRESS_SELECTION:
-		newAddress = addrSel.end();
-		if (newAddress != loco.getAddress()) {  // new loco
-			loco.setAddress(newAddress);
-			sendRequestLoco(loco.getAddress()); // read state from central sx bus
-			mode = MODE_WAITING_FOR_RESPONSE;
-			disp.dispCharacters('-', '0');
-
-		} else { // no change, just continue with stored value for current speed
-			encoder.setPosition(loco.getSpeed());
-			mode = MODE_NORMAL;
-			disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
-		}
+      addrClickEnd();
 		break;
 
 	case MODE_WAITING_FOR_RESPONSE:
-		;
+	case MODE_WAITING_FOR_WIFI:
+#ifdef _DEBUG
+		Serial.println("in waiting mode. do nothing.");
+#endif
+	   // do nothing.
+		break;
+
+	}
+	switchOffTimer = millis();  // reset switch off timer
+}
+
+void addrClickEnd() {
+	uint16_t newAddress = addrSel.end();
+	if (newAddress != loco.getAddress()) {  // new loco
+		loco.setAddress(newAddress);		
+		if (mode == MODE_ADDRESS_SELECTION) {
+			// do this only when in 1..99 addr-sel mode
+			// in the FAST mode, the locolist is fixed
+			addrSel.addLocoToLocoList(newAddress);
+		}
+		sendRequestLoco(loco.getAddress()); // read state from central sx bus
+		mode = MODE_WAITING_FOR_RESPONSE;
+		disp.dispCharacters('-', '0');
+
+	} else { // no change, just continue with stored value for current speed
+		encoder.setPosition(loco.getSpeed());
+		mode = MODE_NORMAL;
+		disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
+	}
+}
+/** start address selection mode when address button is clicked
+ *   release address mode when clicked again
+ */
+void addrDoubleClicked() {
+
+#ifdef _DEBUG
+	Serial.println("addr button double clicked.");
+#endif
+	uint16_t newAddress;
+	// toggle address/normal mode
+	switch (mode) {
+	case MODE_NORMAL:
+		mode = MODE_ADDRESS_SELECTION;
+		addrSel.start(loco.getAddress(),true); // select from all addresses
+		                                   // 1..99
+		break;
+
+	case MODE_ADDRESS_SELECTION:
+	case MODE_FAST_ADDRESS_SELECTION:
+		addrClickEnd();
+		break;
+
+	case MODE_WAITING_FOR_RESPONSE:
+   case MODE_WAITING_FOR_WIFI:
 #ifdef _DEBUG
 		Serial.println("in waiting mode. do nothing.");
 #endif
 		// do nothing.
 		break;
-	case MODE_WAITING_FOR_WIFI:
-		;
-#ifdef _DEBUG
-		Serial.println("in waiting for wifi mode. do nothing.");
-#endif
-		// do nothing.
-		break;
-
 	}
 	switchOffTimer = millis();  // reset switch off timer
 }
@@ -628,7 +670,6 @@ void stopClicked() {
 		loco.stop();  // does not change direction!
 		changedFlag = true;
 		encoder.setPosition(0);
-
 	}
 	userInteraction();  // reset switch off timer
 }
@@ -695,13 +736,14 @@ void loop() {
 			Serial.println("switching from waiting to normal");
 #endif
 		}
-	} else if (mode == MODE_ADDRESS_SELECTION) {
+	} else if ( (mode == MODE_ADDRESS_SELECTION) ||
+	            (mode == MODE_FAST_ADDRESS_SELECTION) ) {
 		// selecting a new address for the loco
 		// DO NOT SEND Loco messages during the selection
 		if ((millis() - updateTimer) > 100) {
 			updateTimer = millis();
-			addrSel.doLoop();
-
+			boolean single = (mode == MODE_ADDRESS_SELECTION);
+			addrSel.doLoop(single);
 		}
 	} else if (mode == MODE_NORMAL) {
 		// send loco command refresh at least every 2 secs also without user interaction
@@ -914,14 +956,11 @@ void printConfig(void) {
 	Serial.print("locoAdr=");
 	uint16_t a = loco.getAddress();
 	Serial.print(a);
+   Serial.print(" ");
 
-	Serial.print("  addrmode=");
-	String m = addrSel.getModeString();
-	Serial.println(m);
-
-	Serial.print("lastLoco=");
+	Serial.print("eepLastLoco=");
 	uint16_t last = eep.readLastLoco();
-	Serial.print(last);
+	Serial.println(last);
 
 	Serial.print("  locos=");
 	String ll = addrSel.getLocos();
@@ -939,7 +978,7 @@ void printConfig(void) {
 void printConfigHelp(void) {
 	Serial.println(
 	//	"CONFIGURATION - commands: exit, list, ssid=, pass=, cc= , locos=, addrmode=");
-			"CONFIGURATION - commands: exit, list, ssid=, pass=, locos=, addrmode=");
+			"CONFIGURATION - commands: exit, list, ssid=, pass=, locos=");
 	Serial.println("debug commands are: wifi, reconnect");
 	Serial.println("command ends with newline");
 	printConfig();
@@ -988,36 +1027,13 @@ bool updateConfig(String line) {
 	} else if (line.startsWith("locos=")) {
 		String s = line.substring(line.indexOf('=') + 1);
 		if (eep.writeLocoList(s)) {
-			Serial.print("locos=:");
-			Serial.print(s);
-			Serial.println(":");
-			uint16_t currAddr = loco.getAddress();
-			uint16_t newAddr = addrSel.updateCurrentLocoFromLocoList(s,
-					currAddr);
-			// if address changed
-			if (currAddr != newAddr) {
-				loco.setAddress(newAddr);
-				sendRequestLoco(newAddr); // read state from central sx bus
-				Serial.print("changing loco addr=");
-				Serial.println(newAddr);
-			}
-
+			Serial.print("locos=");
+			Serial.println(s);
 		} else {
 			Serial.println("could not write config");
 		}
-
 	} else if (line.startsWith("list")) {
 		printConfigHelp();
-	} else if (line.startsWith("addrmode=")) {
-		String s = line.substring(line.indexOf('=') + 1);
-		Serial.println(s);
-		if (addrSel.setModeString(s)) { // valid value
-			// TODO ?? change loco address
-			Serial.print("addrmode=");
-			Serial.println(addrSel.getModeString());
-		} else {
-			Serial.println("could not write config");
-		}
 	}
 	return false; // not the end of configuration
 }
@@ -1038,4 +1054,3 @@ bool updateConfig(String line) {
  Serial.println("toggled trackpower.");
  #endif
  }  // endif encButtonTimer  */
-

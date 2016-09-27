@@ -21,13 +21,6 @@ AddrSelection::AddrSelection() {
 
 uint16_t AddrSelection::initFromEEPROM() {
 
-	// read address mode
-	_mode = eep.readAddrMode();
-
-	if ((_mode != ADDR_MODE_SINGLE) && (_mode != ADDR_MODE_MULTI)) {
-		_mode = ADDR_MODE_SINGLE;
-		eep.writeAddrMode(_mode); // initialize new eeprom
-	}
 	_currentAddress = eep.readLastLoco();
 
 	if (_currentAddress >= 100) {  // no valid SX address
@@ -44,20 +37,17 @@ uint16_t AddrSelection::initFromEEPROM() {
 	return _currentAddress;  // return always a valid address
 }
 
-void AddrSelection::start(uint16_t addr) {
+void AddrSelection::start(uint16_t addr, boolean single) {
 
-	_mode = ADDR_MODE_SINGLE;
 	_currentAddress = addr;
 	_lastActiveAddress = addr;
 
-	// read address mode
-	_mode = eep.readAddrMode();
 #ifdef _DEBUG
 	Serial.println("addrsel. start.");
-	Serial.print("addr_mode=");
 #endif
 
-	if (_mode == ADDR_MODE_SINGLE) {
+   // single address selection
+	if (single) {
 #ifdef _DEBUG
 		Serial.println("single");
 #endif
@@ -65,10 +55,11 @@ void AddrSelection::start(uint16_t addr) {
 		_selectedIndex = 0;
 		_nAddresses = 1;
 	} else {
+	// multiple addresses
 #ifdef _DEBUG
 		Serial.println("multi");
 #endif
-		// check if the last loco is in new new locoList
+		// check if the last loco is in new locoList
 		_selectedIndex = 0;  // there is always at least one loco
 		for (int i = 0; i < _nAddresses; i++) {
 			if (_addresses[i] == addr) {
@@ -83,7 +74,7 @@ void AddrSelection::start(uint16_t addr) {
 	}
 
 	// init encoder to either use index table or the real address value
-	if (_mode == ADDR_MODE_SINGLE) {
+	if (single) {
 		encoder.setPosition(_currentAddress);
 		disp.dispBlinkNumber(_currentAddress); // take address from address list
 	} else {
@@ -104,8 +95,8 @@ String AddrSelection::getLocos(void) {
 	return s;
 }
 
-void AddrSelection::doLoop(void) {
-	if (_mode == ADDR_MODE_SINGLE) {
+void AddrSelection::doLoop(boolean single) {
+	if (single) {
 
 		int newAddr = encoder.getPositionMax(MAX_LOCO_ADDRESS + 1);
 		if (newAddr > MAX_LOCO_ADDRESS) {  // rollover
@@ -141,43 +132,6 @@ void AddrSelection::doLoop(void) {
 			userInteraction();  // resets switch off timer
 		}
 	}
-}
-
-uint16_t AddrSelection::getMode(void) {
-	return _mode;
-}
-
-bool AddrSelection::setMode(uint16_t mo) {
-	if ((mo == ADDR_MODE_SINGLE) || (mo == ADDR_MODE_MULTI)) {
-		_mode = mo;
-		eep.writeAddrMode(_mode);
-		return true;  // success
-	} else {
-		return false;
-	}
-}
-
-bool AddrSelection::setModeString(String s) {
-	s.toLowerCase();
-	s.trim();
-	if (s.startsWith("single")) {
-		return setMode(ADDR_MODE_SINGLE);
-	} else if (s.startsWith("multi")) {
-		return setMode(ADDR_MODE_MULTI);
-	} else {
-		return false;
-	}
-}
-
-String AddrSelection::getModeString(void) {
-	if (_mode == ADDR_MODE_SINGLE) {
-		return "single";
-	} else if (_mode == ADDR_MODE_MULTI) {
-		return "multi";
-	} else {
-		return "unknown";
-	}
-
 }
 
 uint16_t AddrSelection::end(void) {
@@ -238,32 +192,42 @@ uint16_t AddrSelection::parseLocoList(String str) {
 
 }
 
-uint16_t AddrSelection::updateCurrentLocoFromLocoList(String locolist,
-		uint16_t addr) {
-	if (_mode == ADDR_MODE_SINGLE) {
-		if (addr != _lastActiveAddress) {
-			_currentAddress = addr;
-			_lastActiveAddress = addr;
-			eep.writeLastLoco(addr);
-		}
-		return addr;
-	} else {
+uint16_t AddrSelection::addLocoToLocoList(uint16_t addr) {
+	uint16_t eepLocoAddr = eep.readLastLoco();
+	if (addr != eepLocoAddr ) {
+	   eep.writeLastLoco(addr);
+		delay(10);
+	}
 
-		parseLocoList(locolist);
+   String locolist = eep.readLocoList();
+	parseLocoList(locolist);
 
-		for (int i = 0; i < _nAddresses; i++) {
+	// check if "addr" is already in locolist
+	boolean found = false;
+	for (int i = 0; i < _nAddresses; i++) {
 			if (_addresses[i] == addr) {
 				// the current loco is in the list
 				_selectedIndex = i;   // can have changed anyway !
-				return addr;
+				found = true;
+				break;
 			}
-		}
-
-		// if mode == MULTI and current loco not in list, reinit addr
-		// select the first loco as default
-		_selectedIndex = 0;
-		_lastActiveAddress = _addresses[0];
-		eep.writeLastLoco(_lastActiveAddress);
-		return _lastActiveAddress;
 	}
+   if (found == false) {
+		// new loco address not contained in locolist, add it to the
+		// beginning of the list - but store a maximum of 10 addresses
+		String newLocoList = String(addr);
+		int count = 1;
+		for (int i = 0; i < min(9,_nAddresses); i++) {
+			newLocoList += "," + String(_addresses[i]);
+			count ++;
+		}
+		_selectedIndex = 0;
+		_nAddresses = count; // new number of addresses in locoList
+		eep.writeLocoList(newLocoList);
+#ifdef _DEBUG
+			Serial.print("writing new LocoList=");
+			Serial.println(newLocoList);
+#endif
+	}
+	return addr;
 }

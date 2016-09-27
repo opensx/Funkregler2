@@ -14,35 +14,26 @@
 #include "Display7.h"
 #include "FunkrEEPROM.h"
 
-#define ADDR_MODE_SINGLE    0       // use only one address (but this is selectable)
-#define ADDR_MODE_MULTI     1       // use a fixed list of loco addresses
-
 class AddrSelection {
 public:
 	AddrSelection();
 
 	uint16_t initFromEEPROM();  // init from eeprom and return last selected loco
 
-    void doLoop(void);
+    void doLoop(boolean single);
 
-    void start(uint16_t addr);  // start to select a new address
+    void start(uint16_t addr, boolean single);  // start to select a new address
     uint16_t end(void);  // returning new address
 
-    String getModeString(void);
-    bool setModeString(String);  // set to "single" or "multi"
-
     String getLocos(void);  // loco list string
-    uint16_t updateCurrentLocoFromLocoList(String, uint16_t); // check if current loco is still valid after locolist update
+    uint16_t addLocoToLocoList(uint16_t addr); // add new selected loco to locolist
 
 
 private:
 
-    bool setMode(uint16_t mode);
-    uint16_t getMode(void);
 
     uint16_t _lastActiveAddress;   // last used address
     uint16_t _currentAddress;      // during address selection active
-    uint16_t _mode;                // single or multi address mode (see above)
 
     String _locoList;
 
