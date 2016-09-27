@@ -40,7 +40,7 @@
 
 #define DP      1
 
-#define BATT_PIN   A1    // battery is at A1, connected by 2:1 divider
+#define BATT_PIN   (A1)   // battery is at A1, connected by 2:1 divider
 #define FW         0    // display-number for forward direction
 #define BW         1    // display-number for backward direction
 #define STOP_BTN  7     // encoder push button
@@ -52,7 +52,7 @@
 
 #define IRQ_FREQ   200
 
-//******* HARDWARE PINS ******** REV 0.3 **************
+//******* HARDWARE PINS ******** REV 0.3 **********************
 #elif defined (HWREV_0_3)
 
 #define ANODE1   A5          // left side 7-seg enable (active low)
@@ -63,7 +63,7 @@
 
 #define DP      1
 
-#define BATT_PIN   A1    // battery is at A1, connected by 2:1 divider
+#define BATT_PIN   (A1)    // battery is at A1, connected by 2:1 divider
 #define FW         0    // display-number for forward direction
 #define BW         1    // display-number for backward direction
 #define STOP_BTN  7     // encoder push button
@@ -72,6 +72,36 @@
 #define ADDR_BTN   5     // for address selection
 #define F0_BTN     3      // toggle button
 #define F1_BTN     9     // momentary function
+
+#define IRQ_FREQ   200
+
+//******* HARDWARE PINS ******** TODO !!!!  REV 0.4 **********
+#elif defined (HWREV_0_4)
+
+#define ANODE1   A5          // left side 7-seg enable (active low)
+#define ANODE2   A0          // right side 7-seg enable  (active low)
+
+#define LED_F0   9
+#define LED_F1   14
+
+#define ENC1    6   // first encoder pin
+#define ENC2    8   // second encoder pin
+
+#define DP      1
+
+#define BATT_PIN   (A1)    // battery is at A1, connected by 2:1 divider
+#define FW         0    // display-number for forward direction
+#define BW         1    // display-number for backward direction
+#define STOP_BTN  7     // encoder push button
+#define BATT_ON    0     // PIN for switching batt power on / off
+
+// #define ADDR_BTN   5     // for address selection
+// #define F0_BTN     3      // toggle button
+// #define F1_BTN     9     // momentary function
+
+//************ 3 analog Buttons ****************************
+
+#define ANALOG_BTN_PIN   A2
 
 #define IRQ_FREQ   200
 
@@ -117,5 +147,3 @@
 
 
 #endif //PCB_TYPE_H_
-
-

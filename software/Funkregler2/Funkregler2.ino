@@ -6,7 +6,7 @@
  Rotary Encoder for Speed and Address Selection
  Buttons for Start-Address-Selection ("A"), Light (F0="L") and Function (F1="F")
 
- 27 Sept. 2016   click/doubleclick Adr-Btn
+ 27 Sept. 2016   click/doubleclick Adr-Btn, prepare for HWREV_0_4 (not tested)
  08 Sept. 2016   using WiFi101 lib commit d27bf7c (fix for rssi=0)
  13 August 2016  hw-ddc-0.1 added with analog buttons for F0..F4
  06 August 2016  hw-rev 0.3 added, refactored addr selection and eeprom usage
@@ -68,17 +68,26 @@ const unsigned int lanbahnport = 27027;      // lanbahn port to listen on
 //************** EEPROM ***************************************
 FunkrEEPROM eep;
 
-//************* Buttons ****************************************
+//************* Button declarations ***************************
+
+#ifdef HWREV_D_0_1   // 4-digit display
 OneButton addrBtn(ADDR_BTN, true);
 OneButton stopBtn(STOP_BTN, true);
-#ifdef HWREV_D_0_1
-AnalogButtons analogButtons = AnalogButtons(A5, INPUT, 2, 20);
+AnalogButtons analogButtons = AnalogButtons(ANALOG_BTN_PIN, INPUT, 2, 20);
 Button f0Btn = Button(856, &f0Clicked);
-Button f1Btn = Button(709, &f1Clicked);
+Button f1Btn = Button(709, &f1Clicked,
 Button f2Btn = Button(10, &f2Clicked, &switchOffBatt, 5000);
 Button f3Btn = Button(522, &f3Clicked);
 Button f4Btn = Button(335, &f4Clicked);
-#else
+#elif defined (HWREV_0_4)   // 2-digit display, 2 function leds
+OneButton stopBtn(STOP_BTN, true);
+AnalogButtons analogButtons = AnalogButtons(ANALOG_BTN_PIN, INPUT, 2, 40);
+Button f0Btn = Button(341, &f0Clicked);
+Button f1Btn = Button(682, &f1Clicked, &switchOffBatt, 5000);
+Button addrBtn = Button(10, &addrClicked);
+#else  // 2 digit display
+OneButton addrBtn(ADDR_BTN, true);
+OneButton stopBtn(STOP_BTN, true);
 OneButton f0Btn(F0_BTN, true);
 OneButton f1Btn(F1_BTN, true);
 #endif
@@ -137,6 +146,11 @@ void setup() {
 	digitalWrite(BATT_ON, HIGH);  // batt power on
 	disp.setDecPoint(BW, true);
 
+#ifdef HWREV_0_4     // enable function led outputs
+   pinMode(LED_F0, OUTPUT);
+   pinMode(LED_F1, OUTPUT);
+#endif
+
 #ifdef _DEBUG
 	Serial.begin(57600); // USB is always 12 Mbit/sec
 	long t1 = millis();
@@ -190,13 +204,36 @@ void setup() {
 }
 
 void initButtons() {
+
+	// stop-button has a seperate input for all HARDWARE revisions
+	pinMode(STOP_BTN, INPUT_PULLUP);
+
 #ifdef HWREV_D_0_1
+   // functions
 	analogButtons.add(f0Btn);
 	analogButtons.add(f1Btn);
 	analogButtons.add(f2Btn);
 	analogButtons.add(f3Btn);
 	analogButtons.add(f4Btn);
+
+	// address button
+	pinMode(ADDR_BTN, INPUT_PULLUP);
+	addrBtn.setClickTicks(300);
+	addrBtn.setPressTicks(5000); // 5 secs for long press => entering config mode
+	addrBtn.attachClick(addrClicked);
+   addrBtn.attachDoubleClick(addrDoubleClicked);
+	addrBtn.attachLongPressStart(toggleConfig);
+
+#elif defined HWREV_0_4
+   // functions
+   analogButtons.add(f0Btn);
+   analogButtons.add(f1Btn);
+
+	// address button
+   analogButtons.add(addrBtn);
+
 #else
+   // functions
 	pinMode(F0_BTN, INPUT_PULLUP);
 	pinMode(F1_BTN, INPUT_PULLUP);
 	f0Btn.attachClick(f0Clicked);
@@ -205,21 +242,15 @@ void initButtons() {
 	f1Btn.setClickTicks(100);
 	f1Btn.setPressTicks(5000);// 5 secs for long press => switch off
 	f1Btn.attachLongPressStart(switchOffBatt);
-#endif
-   // addr-button and stop-button have a seperate input for all HARDWARE
-	// revisions to allow for doubleclick and long-press events (using the
-   // "OneButton" library)
 
+	// address button
 	pinMode(ADDR_BTN, INPUT_PULLUP);
-	pinMode(STOP_BTN, INPUT_PULLUP);
 	addrBtn.setClickTicks(300);
 	addrBtn.setPressTicks(5000); // 5 secs for long press => entering config mode
 	addrBtn.attachClick(addrClicked);
    addrBtn.attachDoubleClick(addrDoubleClicked);
 	addrBtn.attachLongPressStart(toggleConfig);
-
-	stopBtn.attachClick(stopClicked);
-	stopBtn.setClickTicks(100);
+#endif
 
 }
 
@@ -389,6 +420,7 @@ void updateBuffer() {
 	IPAddress ip = WiFi.localIP();
 	unsigned long secs = millis() / 1000;  // type of secs because of sprintf
 	int rssi = WiFi.RSSI();
+	// TODO remove noise from analogread (HW cap.?)
 	batteryVoltage = (map(analogRead(BATT_PIN), 0, 1023, 0, cal_33)); // mV on the divider
 	batteryVoltage = batteryVoltage * 2;                         //mV on Battery
 	//batteryState = map(batteryVoltage , 3200, 4250, 0, 100);              //% of charge
@@ -460,6 +492,21 @@ void display_irq(void) {
  *   uses only the address list stored in EEPROM
  */
 void addrClicked() {
+#ifdef HWREV_0_4
+   // TODO: test
+	static long lastClicked = 0;
+	if (( millis() - lastClicked) < 300) {
+		// this button was already clicked during the last 300msec
+		// =>> consider as double clicked
+		if (mode == MODE_FAST_ADDRESS_SELECTION) {
+			mode = MODE_ADDRESS_SELECTION;
+			// restart selection
+			addrSel.start(loco.getAddress(),true); // select from all addresses
+			                                   // 1..99
+		}
+	}
+	lastClicked = millis();
+#endif
 
 #ifdef _DEBUG
 	Serial.println("addr button clicked.");
@@ -493,11 +540,12 @@ void addrClicked() {
 void addrClickEnd() {
 	uint16_t newAddress = addrSel.end();
 	if (newAddress != loco.getAddress()) {  // new loco
-		loco.setAddress(newAddress);		
+		loco.setAddress(newAddress);
 		if (mode == MODE_ADDRESS_SELECTION) {
 			// do this only when in 1..99 addr-sel mode
 			// in the FAST mode, the locolist is fixed
 			addrSel.addLocoToLocoList(newAddress);
+
 		}
 		sendRequestLoco(loco.getAddress()); // read state from central sx bus
 		mode = MODE_WAITING_FOR_RESPONSE;
@@ -637,6 +685,11 @@ void functionClicked(uint8_t index) {
 		uint8_t val = loco.toggleFunction(index);
 #ifdef HWREV_D_0_1
 		disp.dispCharacters('F', '0' + index, '=', '0' + val, 1000);
+#endif
+#ifdef HWREV_0_4
+      digitalWrite(LED_F0, loco.getF0());
+		digitalWrite(LED_F1, loco.getF1());
+
 #endif
 		changedFlag = true;
 	}
