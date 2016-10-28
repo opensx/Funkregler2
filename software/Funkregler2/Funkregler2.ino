@@ -16,14 +16,17 @@
  if _DEBUG is defined, there MUST BE A TERMINAL connected to the
 
  *****************************************************************/
+#define BUFFER_LENGTH  32
+ 
 #include <SPI.h>
 #include <WiFi101.h>
 #include <WiFiUdp.h>
-
+#include <Wire.h>
 #include <OneButton.h>
 #include <AnalogButtons.h>
 #include <Timer5.h>
 #include <Adafruit_SleepyDog.h>
+  
 
 #include "pcb-type.h"
 #include "FunkrEEPROM.h"
@@ -243,6 +246,8 @@ void initButtons() {
 	f1Btn.setPressTicks(5000);// 5 secs for long press => switch off
 	f1Btn.attachLongPressStart(switchOffBatt);
 
+ 
+  
 	// address button
 	pinMode(ADDR_BTN, INPUT_PULLUP);
 	addrBtn.setClickTicks(300);
@@ -252,6 +257,8 @@ void initButtons() {
 	addrBtn.attachLongPressStart(toggleConfig);
 #endif
 
+stopBtn.attachClick(stopClicked);    // all hardware revisions
+ 
 }
 
 /** get mode setting, the locoList and the currentLoco from the EEPROM

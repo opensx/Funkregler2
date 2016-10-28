@@ -13,8 +13,9 @@
 #include <Arduino.h>
 
 #include "pcb-type.h"
-#include <Eeprom24C32_64.h>
 #include <Wire.h>
+#include <Eeprom24C32_64.h>
+
 
 
 //******* EEPROM DEFINES ***********************************************
