@@ -17,7 +17,7 @@
 //#define MAX 127     //DCC
 #define MAX_LOCO_ADDRESS    99   // for selectrix
 
-#define _DEBUG           // if debug => output to Serial Port
+//#define _DEBUG           // if debug => output to Serial Port
 
 #define INVALID_INT  (10000)   // invalid integer value, higher than any loco addr or speed
 

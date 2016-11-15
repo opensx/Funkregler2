@@ -17,7 +17,7 @@
 
  *****************************************************************/
 #define BUFFER_LENGTH  32
- 
+
 #include <SPI.h>
 #include <WiFi101.h>
 #include <WiFiUdp.h>
@@ -26,7 +26,6 @@
 #include <AnalogButtons.h>
 #include <Timer5.h>
 #include <Adafruit_SleepyDog.h>
-  
 
 #include "pcb-type.h"
 #include "FunkrEEPROM.h"
@@ -37,8 +36,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_26
-#define SW_STRING "SW_0.26"
+#define SW_REV_0_27
+#define SW_STRING "SW_0.27"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -78,7 +77,7 @@ OneButton addrBtn(ADDR_BTN, true);
 OneButton stopBtn(STOP_BTN, true);
 AnalogButtons analogButtons = AnalogButtons(ANALOG_BTN_PIN, INPUT, 2, 20);
 Button f0Btn = Button(856, &f0Clicked);
-Button f1Btn = Button(709, &f1Clicked,
+Button f1Btn = Button(709, &f1Clicked);
 Button f2Btn = Button(10, &f2Clicked, &switchOffBatt, 5000);
 Button f3Btn = Button(522, &f3Clicked);
 Button f4Btn = Button(335, &f4Clicked);
@@ -150,8 +149,8 @@ void setup() {
 	disp.setDecPoint(BW, true);
 
 #ifdef HWREV_0_4     // enable function led outputs
-   pinMode(LED_F0, OUTPUT);
-   pinMode(LED_F1, OUTPUT);
+	pinMode(LED_F0, OUTPUT);
+	pinMode(LED_F1, OUTPUT);
 #endif
 
 #ifdef _DEBUG
@@ -208,11 +207,11 @@ void setup() {
 
 void initButtons() {
 
-	// stop-button has a seperate input for all HARDWARE revisions
+	// stop-button has a separate input for all HARDWARE revisions
 	pinMode(STOP_BTN, INPUT_PULLUP);
 
 #ifdef HWREV_D_0_1
-   // functions
+	// functions
 	analogButtons.add(f0Btn);
 	analogButtons.add(f1Btn);
 	analogButtons.add(f2Btn);
@@ -222,43 +221,45 @@ void initButtons() {
 	// address button
 	pinMode(ADDR_BTN, INPUT_PULLUP);
 	addrBtn.setClickTicks(300);
-	addrBtn.setPressTicks(5000); // 5 secs for long press => entering config mode
+	addrBtn.setPressTicks(5000);// 5 secs for long press => entering config mode
 	addrBtn.attachClick(addrClicked);
-   addrBtn.attachDoubleClick(addrDoubleClicked);
+	addrBtn.attachDoubleClick(addrDoubleClicked);
 	addrBtn.attachLongPressStart(toggleConfig);
 
 #elif defined HWREV_0_4
-   // functions
-   analogButtons.add(f0Btn);
-   analogButtons.add(f1Btn);
+	// functions
+	analogButtons.add(f0Btn);
+	analogButtons.add(f1Btn);
 
 	// address button
-   analogButtons.add(addrBtn);
+	analogButtons.add(addrBtn);
 
 #else
-   // functions
+	// activate pullups
 	pinMode(F0_BTN, INPUT_PULLUP);
 	pinMode(F1_BTN, INPUT_PULLUP);
+	pinMode(ADDR_BTN, INPUT_PULLUP);
+
+	// functions
 	f0Btn.attachClick(f0Clicked);
 	f0Btn.setClickTicks(100);  // click detected after xx ms
 	f1Btn.attachClick(f1Clicked);
 	f1Btn.setClickTicks(100);
-	f1Btn.setPressTicks(5000);// 5 secs for long press => switch off
+	f1Btn.setPressTicks(5000);  // 5 secs for long press => switch off
 	f1Btn.attachLongPressStart(switchOffBatt);
 
- 
-  
+	stopBtn.setClickTicks(100);
+
 	// address button
-	pinMode(ADDR_BTN, INPUT_PULLUP);
 	addrBtn.setClickTicks(300);
 	addrBtn.setPressTicks(5000); // 5 secs for long press => entering config mode
 	addrBtn.attachClick(addrClicked);
-   addrBtn.attachDoubleClick(addrDoubleClicked);
+	addrBtn.attachDoubleClick(addrDoubleClicked);
 	addrBtn.attachLongPressStart(toggleConfig);
 #endif
 
 stopBtn.attachClick(stopClicked);    // all hardware revisions
- 
+
 }
 
 /** get mode setting, the locoList and the currentLoco from the EEPROM
@@ -301,7 +302,6 @@ bool initFromEEPROM() {
 		eep.writeID(myid);
 	}
 
-
 #ifdef _DEBUG
 	printConfig();
 #endif
@@ -309,24 +309,6 @@ bool initFromEEPROM() {
 	return validWiFiParams;
 
 }
-
-/*bool isValidAddress(uint16_t a) {
- if (ccmode == CCMODE_SX) {
- if ((a <= 0) || (a >= 100)) {
- return false;
- } else {
- return true;
- }
- } else if (ccmode == CCMODE_DCC) {
- if ((a <= 0) || (a >= 10000)) {
- return false;
- } else {
- return true;
- }
- } else {
- return false;
- }
- } */
 
 void reconnectToWiFi() {
 	// Connect to WPA/WPA2 network:
@@ -339,7 +321,7 @@ void reconnectToWiFi() {
 	Udp.beginMulti(lanbahnip, lanbahnport);
 
 	m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
-  Serial.println("deep sleep ENABLED");
+	Serial.println("deep sleep ENABLED");
 
 	Serial.print("trying reconnect, millis=");
 	Serial.println(millis());
@@ -356,7 +338,11 @@ void reconnectToWiFi() {
 	Watchdog.reset();
 	delay(500);  // wait
 
-	mode = MODE_NORMAL;
+	if (WiFi.status() != WL_CONNECTED) {
+		mode = MODE_CONFIG;
+	} else {
+	   mode = MODE_NORMAL;
+	}
 
 }
 
@@ -375,7 +361,7 @@ void connectToWiFi() {
 #else
 	disp.blinkCharacters('-', '-');
 #endif
-	int connectCounter = 0;
+	static int connectCounter = 0;
 	// attempt to connect to Wifi network:
 	while ((WiFi.status() != WL_CONNECTED) && (connectCounter < 3)) {
 		// Connect to WPA/WPA2 network:
@@ -388,7 +374,7 @@ void connectToWiFi() {
 		m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
 
 #ifdef _DEBUG
-    Serial.println("deep sleep ENABLED");
+		Serial.println("deep sleep ENABLED");
 		Serial.print("trying connect, millis=");
 		Serial.println(millis());
 		Serial.print("#retries=");
@@ -404,9 +390,8 @@ void connectToWiFi() {
 		Serial.println(ssid);
 #endif
 		Watchdog.reset();
-		delay(1000);
-		Watchdog.reset();
-		delay(1000);
+		delay(100);
+
 
 		// ***************** switching to config mode **********************
 		mode = MODE_CONFIG;
@@ -461,7 +446,7 @@ void sendAnnounceMessage() {
 		Udp.beginPacket(lanbahnip, lanbahnport);
 		Udp.write(buffer);
 		Udp.endPacket();
-        counter = 0;
+		counter = 0;
 	} else {
 
 #ifdef _DEBUG
@@ -471,7 +456,7 @@ void sendAnnounceMessage() {
 #endif
 		counter++;
 		if (counter >= 3) {
-		   reconnectToWiFi();
+			reconnectToWiFi();
 		}
 	}
 }
@@ -483,7 +468,7 @@ void display_irq(void) {
 #ifdef DIGITS4
 	d++;
 	if (d >= 4)
-		d = 0;
+	d = 0;
 #else
 	if (d == 0) {
 		d = 1;
@@ -500,7 +485,7 @@ void display_irq(void) {
  */
 void addrClicked() {
 #ifdef HWREV_0_4
-   // TODO: test
+	// TODO: test
 	static long lastClicked = 0;
 	if (( millis() - lastClicked) < 300) {
 		// this button was already clicked during the last 300msec
@@ -508,8 +493,8 @@ void addrClicked() {
 		if (mode == MODE_FAST_ADDRESS_SELECTION) {
 			mode = MODE_ADDRESS_SELECTION;
 			// restart selection
-			addrSel.start(loco.getAddress(),true); // select from all addresses
-			                                   // 1..99
+			addrSel.start(loco.getAddress(),true);// select from all addresses
+			// 1..99
 		}
 	}
 	lastClicked = millis();
@@ -524,12 +509,12 @@ void addrClicked() {
 	case MODE_NORMAL:
 		mode = MODE_FAST_ADDRESS_SELECTION;
 		addrSel.start(loco.getAddress(), false);   // multi-address mode
-		                                 // addresses from locolist only
+		// addresses from locolist only
 		break;
 
 	case MODE_FAST_ADDRESS_SELECTION:
 	case MODE_ADDRESS_SELECTION:
-      addrClickEnd();
+		addrClickEnd();
 		break;
 
 	case MODE_WAITING_FOR_RESPONSE:
@@ -537,7 +522,7 @@ void addrClicked() {
 #ifdef _DEBUG
 		Serial.println("in waiting mode. do nothing.");
 #endif
-	   // do nothing.
+		// do nothing.
 		break;
 
 	}
@@ -577,8 +562,8 @@ void addrDoubleClicked() {
 	switch (mode) {
 	case MODE_NORMAL:
 		mode = MODE_ADDRESS_SELECTION;
-		addrSel.start(loco.getAddress(),true); // select from all addresses
-		                                   // 1..99
+		addrSel.start(loco.getAddress(), true); // select from all addresses
+		// 1..99
 		break;
 
 	case MODE_ADDRESS_SELECTION:
@@ -587,7 +572,7 @@ void addrDoubleClicked() {
 		break;
 
 	case MODE_WAITING_FOR_RESPONSE:
-   case MODE_WAITING_FOR_WIFI:
+	case MODE_WAITING_FOR_WIFI:
 #ifdef _DEBUG
 		Serial.println("in waiting mode. do nothing.");
 #endif
@@ -608,7 +593,7 @@ void sendAndDisplaySpeed() {
 	// address first
 	uint8_t addr = loco.getAddress();
 	uint8_t sx = loco.getSXData();
-	sprintf(buffer, "S %d %d\n", addr, sx);
+	sprintf(buffer, "SX %d %d\n", addr, sx);
 
 #ifdef _DEBUG
 	Serial.print(buffer);  // contains an "\n" already
@@ -694,7 +679,7 @@ void functionClicked(uint8_t index) {
 		disp.dispCharacters('F', '0' + index, '=', '0' + val, 1000);
 #endif
 #ifdef HWREV_0_4
-      digitalWrite(LED_F0, loco.getF0());
+		digitalWrite(LED_F0, loco.getF0());
 		digitalWrite(LED_F1, loco.getF1());
 
 #endif
@@ -734,9 +719,9 @@ void stopClicked() {
 	userInteraction();  // reset switch off timer
 }
 
-void stopLongClicked() {
+//void stopLongClicked() {
 	// TODO
-}
+//}
 
 /** parse the list of locos
  *  from input String
@@ -796,8 +781,8 @@ void loop() {
 			Serial.println("switching from waiting to normal");
 #endif
 		}
-	} else if ( (mode == MODE_ADDRESS_SELECTION) ||
-	            (mode == MODE_FAST_ADDRESS_SELECTION) ) {
+	} else if ((mode == MODE_ADDRESS_SELECTION)
+			|| (mode == MODE_FAST_ADDRESS_SELECTION)) {
 		// selecting a new address for the loco
 		// DO NOT SEND Loco messages during the selection
 		if ((millis() - updateTimer) > 100) {
@@ -874,7 +859,7 @@ void loop() {
 		} else {
 			if (Serial.available() > 0) {
 				String line = Serial.readStringUntil('\n'); // has 1 second timeout
-				line.toLowerCase();
+				// line.toLowerCase(); SSID is case sensitive
 				userInteraction(); // reset switch off timer
 				Watchdog.reset();
 				bool end = updateConfig(line);
@@ -1016,7 +1001,7 @@ void printConfig(void) {
 	Serial.print("locoAdr=");
 	uint16_t a = loco.getAddress();
 	Serial.print(a);
-   Serial.print(" ");
+	Serial.print(" ");
 
 	Serial.print("eepLastLoco=");
 	uint16_t last = eep.readLastLoco();
