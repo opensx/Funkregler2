@@ -52,7 +52,8 @@ String s_ccmode[N_CCMODE] = { "SX", "DCC" };
 #define MODE_WAITING_FOR_RESPONSE 2   // waiting for loco info from central
 #define MODE_CONFIG               3   // for storing new values in EEPROM
 #define MODE_WAITING_FOR_WIFI     4   // not connected to wifi
-#define MODE_FAST_ADDRESS_SELECTION    5   // short press of "A" button
+#define MODE_FAST_ADDRESS_SELECTION  5   // short press of "A" button
+#define MODE_ERROR_NO_CONNECTION  6   // error mode, there is no wifi connection
 
 #define BLOCKING_TIME  2000   // don#t read feedback from SX Bus for 2 secs
 // after sending new speed value
@@ -88,6 +89,7 @@ Button f0Btn = Button(341, &f0Clicked);
 Button f1Btn = Button(682, &f1Clicked, &switchOffBatt, 5000);
 Button addrBtn = Button(10, &addrClicked);
 #else  // 2 digit display
+// no analog buttons
 OneButton addrBtn(ADDR_BTN, true);
 OneButton stopBtn(STOP_BTN, true);
 OneButton f0Btn(F0_BTN, true);
@@ -190,17 +192,10 @@ void setup() {
 		disp.dispNumber(loco.getAddress());
 		mode = MODE_WAITING_FOR_WIFI;
 	} else {
-		// go straight to config mode and wait for USB connection
-		mode = MODE_CONFIG;
-		disp.dispCharacters('c', 'o');
-#ifndef _DEBUG
-		Serial.begin(57600);
-		while (!Serial) {
-			delay(100);
-			Watchdog.reset();
-		}
-		printConfigHelp();
-#endif
+		// go straight to error mode and wait for
+    // config button press
+		mode = MODE_ERROR_NO_CONNECTION;
+		disp.dispCharacters('E', '7');
 	}
 	Watchdog.enable(8192);
 }
@@ -255,7 +250,7 @@ void initButtons() {
 	addrBtn.setPressTicks(5000); // 5 secs for long press => entering config mode
 	addrBtn.attachClick(addrClicked);
 	addrBtn.attachDoubleClick(addrDoubleClicked);
-	addrBtn.attachLongPressStart(toggleConfig);
+	addrBtn.attachLongPressStart(toggleConfig);  
 #endif
 
 stopBtn.attachClick(stopClicked);    // all hardware revisions
@@ -315,9 +310,7 @@ void reconnectToWiFi() {
 	WiFi.begin(ssid, pass);
 	wifiRetries++;
 	Watchdog.reset();
-	delay(500);  // wait 1 seconds
-	Watchdog.reset();
-	delay(500);  // wait
+	delay(1000);  // wait 1 seconds
 	Udp.beginMulti(lanbahnip, lanbahnport);
 
 	m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
@@ -330,18 +323,13 @@ void reconnectToWiFi() {
 
 	// wait 2 seconds
 	Watchdog.reset();
-	delay(500);  // wait
+	delay(2000);  // wait
 	Watchdog.reset();
-	delay(500);  // wait
-	Watchdog.reset();
-	delay(500);  // wait
-	Watchdog.reset();
-	delay(500);  // wait
 
 	if (WiFi.status() != WL_CONNECTED) {
-		mode = MODE_CONFIG;
+		mode = MODE_ERROR_NO_CONNECTION;
 	} else {
-	   mode = MODE_NORMAL;
+	  mode = MODE_NORMAL;
 	}
 
 }
@@ -349,7 +337,7 @@ void reconnectToWiFi() {
 void connectToWiFi() {
 
 #ifdef _DEBUG
-	Serial.print("trying connect to ssid=");
+	Serial.print("trying connect to ssid="); 
 	Serial.print(ssid);
 	Serial.print("  pass=");
 	Serial.print(pass);
@@ -392,11 +380,8 @@ void connectToWiFi() {
 		Watchdog.reset();
 		delay(100);
 
+		mode = MODE_ERROR_NO_CONNECTION;
 
-		// ***************** switching to config mode **********************
-		mode = MODE_CONFIG;
-		return;
-		// ***************** switching to config mode **********************
 
 	}
 	if (WiFi.status() == WL_CONNECTED) {
@@ -437,6 +422,7 @@ void readUdp() {
 }
 
 void sendAnnounceMessage() {
+  if (mode == MODE_ERROR_NO_CONNECTION) return;  // do nothing if in error mode
 	static int counter = 0;
 	if ((WiFi.status() == WL_CONNECTED) && (WiFi.RSSI() > -80)
 			&& (WiFi.RSSI() != 0)) {
@@ -587,6 +573,7 @@ void sendAndDisplaySpeed() {
 #ifdef _DEBUG
 		Serial.println("ERROR: wifi connection lost");
 #endif
+    return;
 		// connectToWiFi();
 	}
 
@@ -763,16 +750,13 @@ void loop() {
 
 	readUdp();
 
-	// send the announce string every 20sec
-	if ((millis() - announceTimer) >= 20000) {
-		announceTimer = millis();
-		sendAnnounceMessage();
-#ifdef _DEBUG
-		Serial.println(buffer);
-#endif
-	}
 
-	if (mode == MODE_WAITING_FOR_WIFI) {
+  if (mode == MODE_ERROR_NO_CONNECTION) {
+    // do nothing, just wait for button input (to switch off
+    // or to switch into config mode
+    delay(100);
+    disp.dispCharacters('E', '7');
+  } else if (mode == MODE_WAITING_FOR_WIFI) {
 		delay(100);
 		if (WiFi.status() == WL_CONNECTED) {
 			mode = MODE_NORMAL;
@@ -791,8 +775,18 @@ void loop() {
 			addrSel.doLoop(single);
 		}
 	} else if (mode == MODE_NORMAL) {
-		// send loco command refresh at least every 2 secs also without user interaction
-		if (((millis() - updateLocoTimer) > 2000)) {
+  
+    // send the announce string every 20sec
+    if ((millis() - announceTimer) >= 20000) {
+      announceTimer = millis();
+      sendAnnounceMessage();
+#ifdef _DEBUG
+      Serial.println(buffer);
+#endif
+    }
+    
+		// send loco command refresh at least every 5 secs also without user interaction
+		if (((millis() - updateLocoTimer) > 5000)) {
 			updateLocoTimer = millis();
 			sendAndDisplaySpeed();  // dispSpeed() will also be called.
 			changedFlag = false;
