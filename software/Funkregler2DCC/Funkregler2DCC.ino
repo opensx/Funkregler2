@@ -1,7 +1,7 @@
 /*****************************************************************
- Funkregler2.ino
+ Funkregler2DCC.ino
 
- version for MKR 1000 and 7-segment display
+ version for MKR 1000 and 7-segment display  DCC !!!
 
  Rotary Encoder for Speed and Address Selection
  Buttons for Start-Address-Selection ("A"), Light (F0="L") and Function (F1="F")
@@ -17,9 +17,6 @@
 
  *****************************************************************/
 #define BUFFER_LENGTH  32
-#define DCC
-//#define SX
-
 
 #include <SPI.h>
 #include <WiFi101.h>
@@ -28,25 +25,19 @@
 #include <OneButton.h>
 #include <AnalogButtons.h>
 #include <Timer5.h>
-#include <Adafruit_SleepyDog.h>
+//#include <Adafruit_SleepyDog.h>  // see https://github.com/arduino-libraries/WiFi101/issues/181
 
 #include "pcb-type.h"
 #include "FunkrEEPROM.h"
 #include "Display7.h"
-#ifdef SX
-#include "sxutils.h"  // includes debug settings
-#include "SXLoco.h"
-#endif
-#ifdef DCC
 #include "dccutils.h"  // includes debug settings
 #include "DCCLoco.h"
-#endif
 #include "RotaryEncoderMax.h"   // special version
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_28
-#define SW_STRING "SW_0.28"
+#define SW_REV_0_29
+#define SW_STRING "SW_0.29"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -120,7 +111,7 @@ long switchOffTimer;
 long announceTimer, blinkTimer, updateLocoTimer, updateTimer,
 		lastLocoCommandSentTime, connectTimer;
 long addrButtonTimer = 0;
-
+long lastSpeedModTime =0;
 long readFromCentral = 0;
 
 long sentRequestTime = 0;  // time of last Request of LocoSpeed from central
@@ -143,17 +134,14 @@ String pass;
 
 uint16_t ccmode = CCMODE_SX;
 
-#ifdef SX
-SXLoco loco;   // construct an SXloco with address etc
-#endif
-#ifdef DCC
 DCCLoco loco;   // construct DCC loco
-#endif
 
 uint16_t cal_33 = VOLT_3300;   // battery meas. cal constant
 uint16_t myid = 0;
 
 void setup() {
+
+  
 	// define frequency of interrupt
 	MyTimer5.begin(IRQ_FREQ);  // 200=for toggle every 5msec => 2  digits
 							   // 400 for 4 digit display to avoid flicker
@@ -215,14 +203,9 @@ void setup() {
 		mode = MODE_ERROR_NO_CONNECTION;
 		disp.dispCharacters('E', '2');
 	}
-	Watchdog.enable(8192);
+	//Watchdog.enable(8192);
 #ifdef _DEBUG
-#ifdef DCC
   Serial.println("DCC mode");
-#endif
-#ifdef SX
-  Serial.println("SX mode");
-#endif
 #endif
 }
 
@@ -244,7 +227,7 @@ void initButtons() {
 	addrBtn.setClickTicks(300);
 	addrBtn.setPressTicks(5000);// 5 secs for long press => entering config mode
 	addrBtn.attachClick(addrClicked);
-	addrBtn.attachDoubleClick(addrDoubleClicked);
+	//addrBtn.attachDoubleClick(addrDoubleClicked);
 	addrBtn.attachLongPressStart(toggleConfig);
 
 #elif defined HWREV_0_4
@@ -332,10 +315,17 @@ bool initFromEEPROM() {
 }
 
 void reconnectToWiFi() {
+
+  // for now: RESET
+
+  doReset();  //**********************************************
+
+  return;
+  
 	// Connect to WPA/WPA2 network:
 	WiFi.begin(ssid, pass);
 	wifiRetries++;
-	Watchdog.reset();
+	//Watchdog.reset();
 	delay(1000);  // wait 1 seconds
 	Udp.beginMulti(lanbahnip, lanbahnport);
 
@@ -348,9 +338,9 @@ void reconnectToWiFi() {
 	Serial.println(wifiRetries);
 
 	// wait 2 seconds
-	Watchdog.reset();
+	//Watchdog.reset();
 	delay(2000);  // wait
-	Watchdog.reset();
+	//Watchdog.reset();
 
 	if (WiFi.status() != WL_CONNECTED) {
 		mode = MODE_ERROR_NO_CONNECTION;
@@ -381,7 +371,7 @@ void connectToWiFi() {
 		// Connect to WPA/WPA2 network:
 		WiFi.begin(ssid, pass);
 		wifiRetries++;
-		Watchdog.reset();
+		//Watchdog.reset();
 		delay(500);  // wait
 
 		Udp.beginMulti(lanbahnip, lanbahnport);
@@ -403,7 +393,7 @@ void connectToWiFi() {
 		Serial.print("ERROR: could not connect to ");
 		Serial.println(ssid);
 #endif
-		Watchdog.reset();
+		//Watchdog.reset();
 		delay(100);
 
 		mode = MODE_ERROR_NO_CONNECTION;
@@ -469,6 +459,7 @@ void sendAnnounceMessage() {
 		counter++;
 		if (counter >= 3) {
 			reconnectToWiFi();
+      counter = 0;
 		}
 	}
 }
@@ -545,53 +536,14 @@ void addrClickEnd() {
 	uint16_t newAddress = addrSel.end();
 	if (newAddress != loco.getAddress()) {  // new loco
 		loco.setAddress(newAddress);
-		if (mode == MODE_ADDRESS_SELECTION) {
-			// do this only when in 1..99 addr-sel mode
-			// in the FAST mode, the locolist is fixed
-			addrSel.addLocoToLocoList(newAddress);
-
-		}
-		sendRequestLoco(loco.getAddress()); // read state from central sx bus
-		mode = MODE_WAITING_FOR_RESPONSE;
-		disp.dispCharacters('-', '0');
+    mode = MODE_NORMAL;
+    disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
 
 	} else { // no change, just continue with stored value for current speed
 		encoder.setPosition(loco.getSpeed());
 		mode = MODE_NORMAL;
 		disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
 	}
-}
-/** start address selection mode when address button is clicked
- *   release address mode when clicked again
- */
-void addrDoubleClicked() {
-
-#ifdef _DEBUG
-	Serial.println("addr button double clicked.");
-#endif
-	uint16_t newAddress;
-	// toggle address/normal mode
-	switch (mode) {
-	case MODE_NORMAL:
-		mode = MODE_ADDRESS_SELECTION;
-		addrSel.start(loco.getAddress(), true); // select from all addresses
-		// 1..99
-		break;
-
-	case MODE_ADDRESS_SELECTION:
-	case MODE_FAST_ADDRESS_SELECTION:
-		addrClickEnd();
-		break;
-
-	case MODE_WAITING_FOR_RESPONSE:
-	case MODE_WAITING_FOR_WIFI:
-#ifdef _DEBUG
-		Serial.println("in waiting mode. do nothing.");
-#endif
-		// do nothing.
-		break;
-	}
-	switchOffTimer = millis();  // reset switch off timer
 }
 
 void sendAndDisplaySpeed() {
@@ -603,20 +555,13 @@ void sendAndDisplaySpeed() {
 		// connectToWiFi();
 	}
 
-#ifdef SX
-	// address first
-	uint8_t addr = loco.getAddress();
-	uint8_t sx = loco.getSXData();
-	sprintf(buffer, "SX %d %d\n", addr, sx);
-#endif
-
-#ifdef DCC
   // address first
   uint16_t addr = loco.getAddress();
+  uint16_t abssp = loco.getAbsSpeed();
   uint8_t dir = loco.getBackward();
   String func =loco.getF0F4String();
-  sprintf(buffer, "DCC1 %d %d %s\n", addr, dir, func.c_str());
-#endif
+  sprintf(buffer, "DCC1 %d %d %d %s\n", addr, abssp, dir, func.c_str());
+
 
 #ifdef _DEBUG
 	Serial.print(buffer);  // contains an "\n" already
@@ -632,7 +577,7 @@ void sendAndDisplaySpeed() {
 	lastLocoCommandSentTime = millis();  // loco command was updated
 }
 
-/** request loco info from SX interface
+/** request loco info from interface
  * after this request, we are waiting for a second
  * to get a response from central - then setting
  * loco to "zero" if no response
@@ -675,22 +620,9 @@ void interpretCommand(String s) {
 			} else {
 				trackPower = POWER_ON;
 			}
-		} else if ((loco.getAddress() == i_ch) && (i_value >= 0)
-				&& (i_value <= 255)) {
-			// received sx data for the currently controlled loco
-			if ((millis() - lastLocoCommandSentTime) > BLOCKING_TIME) {
-				// set only when throttle is inactive
-#ifdef SX
-				loco.setFromSXData((uint8_t) i_value);
-#endif     // 
-//TODO implement for DCC
-			}
-			if (mode == MODE_WAITING_FOR_RESPONSE) {
-				// reset to normal if response received
-				mode = MODE_NORMAL;
-			}
 		}
 	}
+    //TODO loco state request from central station 
 }
 
 void functionClicked(uint8_t index) {
@@ -775,7 +707,7 @@ void sendTrackPower() {
 }
 
 void loop() {
-	Watchdog.reset();
+	//Watchdog.reset();
 
 	encoder.tick();
 	stopBtn.tick();
@@ -810,11 +742,8 @@ void loop() {
 		// DO NOT SEND Loco messages during the selection
 		if ((millis() - updateTimer) > 100) {
 			updateTimer = millis();
-			boolean single = (mode == MODE_ADDRESS_SELECTION);
-#ifdef DCC
-      single = false;  // always select from already existing list
-#endif
-			addrSel.doLoop(single);
+			// SX only / boolean single = (mode == MODE_ADDRESS_SELECTION);
+			addrSel.doLoop(false);  // always select from already existing list
 		}
 	} else if (mode == MODE_NORMAL) {
   
@@ -835,13 +764,13 @@ void loop() {
 		}
 
 		// every 100ms check encoder for speed/functions change
-		if ((millis() - updateTimer) >= 100) {
+		if ((millis() - updateTimer) >= 50) {
 			updateTimer = millis();
 
 			long newSpeed;
 			newSpeed = encoder.getPositionMax(MAX_SPEED);
-
-			if (newSpeed != loco.getSpeed()) {
+      int16_t actSpeed = loco.getSpeed();
+			if (newSpeed != actSpeed) {
 				/* have a "zero with sign" i.e. stop the loco first
 				 without changing the direction, then change the direction
 				 but leave speed at 0, then normal speed setting */
@@ -856,9 +785,24 @@ void loop() {
 				} else if (newSpeed == 0) {
 					loco.stop();
 				} else {
+          if ( 
+               ((millis() - lastSpeedModTime) < 100) 
+               && (abs(actSpeed) >= 5) 
+             ) {
+            if (newSpeed > actSpeed) {
+              newSpeed += 10;
+              if (newSpeed > MAX_SPEED) newSpeed = MAX_SPEED;
+            } else {
+              newSpeed -= 10;
+              if (newSpeed < -MAX_SPEED) newSpeed = -MAX_SPEED;
+            }          
+          }
+                 
 					loco.setSpeed(newSpeed);
+          encoder.setPosition(newSpeed);
 				}
 				changedFlag = true;
+       lastSpeedModTime = millis();
 			}
 			if (changedFlag == true) { // there was some user interaction
 				userInteraction();  // reset switch off timer
@@ -891,7 +835,7 @@ void loop() {
 			Serial.begin(57600);
 		while (!Serial && ((millis() - timeout) < 20000)) {
 			// wait for 20 seconds for serial usb connection.
-			Watchdog.reset();
+			//Watchdog.reset();
 			delay(100);
 		}
 		if (!Serial) {  // no sense to wait any longer
@@ -902,7 +846,7 @@ void loop() {
 				String line = Serial.readStringUntil('\n'); // has 1 second timeout
 				// line.toLowerCase(); SSID is case sensitive
 				userInteraction(); // reset switch off timer
-				Watchdog.reset();
+				//Watchdog.reset();
 				bool end = updateConfig(line);
 				if (end) {
 					mode = MODE_NORMAL;
@@ -975,7 +919,7 @@ void toggleConfig(void) {
 			Serial.begin(57600); // must initialize when not in debug
 			while (!Serial && ((millis() - timeout) < 10000)) { // 10 secs timeout
 				delay(100);
-				Watchdog.reset();
+				//Watchdog.reset();
 			}
 			if (!Serial) {
 				// timeout, nothing connected on USB, go back to normal mode
@@ -1171,6 +1115,12 @@ void printEncryptionType(int thisType) {
       Serial.println("Auto");
       break;
   }
+}
+
+void doReset(void) {
+   Serial.println("Performing reset");
+  // Watchdog.enable(16);
+   delay(50);
 }
 // ******************************************** snippets ********************************************
 /* TODO TRACKPOWER ON/off
