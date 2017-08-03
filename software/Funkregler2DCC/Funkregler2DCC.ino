@@ -7,7 +7,7 @@
  Buttons for Start-Address-Selection ("A"), Light (F0="L") and Function (F1="F")
 
  03 Aug 2017     special version only for DCC, added reset of WiFi part when
-                 no longer connected (rssi=0)
+                 no longer connected (rssi=0)  (SW_0.30)
  27 Sept. 2016   click/doubleclick Adr-Btn, prepare for HWREV_0_4 (not tested)
  08 Sept. 2016   using WiFi101 lib commit d27bf7c (fix for rssi=0)
  13 August 2016  hw-ddc-0.1 added with analog buttons for F0..F4
@@ -38,8 +38,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_29
-#define SW_STRING "SW_0.29"
+#define SW_REV_0_30
+#define SW_STRING "SW_0.30"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -61,6 +61,9 @@ Display7 disp;
 // after sending new speed value
 
 #define LIST_NETWORKS    // if defined, networks are scanned at start
+
+#define LOW_RSSI_LIMIT  (-88)    // below this limit or when rssi=0 the wifi chip
+                                 // will be reset
 
 //************** rotary decoder definition ********************
 RotaryEncoderMax encoder(ENC1, ENC2);
@@ -444,8 +447,8 @@ void readUdp() {
 
 void sendAnnounceMessage() {
   if (mode == MODE_ERROR_NO_CONNECTION) return;  // do nothing if in error mode
-	static int counter = 0;
-	if ((WiFi.status() == WL_CONNECTED) && (WiFi.RSSI() > -80)
+	static int lowRSSIcounter = 0;
+	if ((WiFi.status() == WL_CONNECTED) && (WiFi.RSSI() > LOW_RSSI_LIMIT)
 			&& (WiFi.RSSI() != 0)) {
 		// wifi is o.k., we can send a message
 		updateBuffer();
@@ -453,7 +456,7 @@ void sendAnnounceMessage() {
 		Udp.beginPacket(lanbahnip, lanbahnport);
 		Udp.write(buffer);
 		Udp.endPacket();
-		counter = 0;
+		lowRSSIcounter = 0;
 	} else {
 
 #ifdef _DEBUG
@@ -461,10 +464,10 @@ void sendAnnounceMessage() {
 		Serial.print("rss=");
 		Serial.println(WiFi.RSSI());
 #endif
-		counter++;
-		if (counter >= 3) {
+		lowRSSIcounter++;
+		if (lowRSSIcounter >= 2) {
 			reconnectToWiFi();
-      counter = 0;
+      lowRSSIcounter = 0;
 		}
 	}
 }
