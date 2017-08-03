@@ -6,6 +6,8 @@
  Rotary Encoder for Speed and Address Selection
  Buttons for Start-Address-Selection ("A"), Light (F0="L") and Function (F1="F")
 
+ 03 Aug 2017     special version only for DCC, added reset of WiFi part when
+                 no longer connected (rssi=0)
  27 Sept. 2016   click/doubleclick Adr-Btn, prepare for HWREV_0_4 (not tested)
  08 Sept. 2016   using WiFi101 lib commit d27bf7c (fix for rssi=0)
  13 August 2016  hw-ddc-0.1 added with analog buttons for F0..F4
@@ -315,20 +317,23 @@ bool initFromEEPROM() {
 }
 
 void reconnectToWiFi() {
-
-  // for now: RESET
-
-  doReset();  //**********************************************
-
-  return;
+  WiFi.end();
   
+  // for now: RESET
+  
+  nm_bsp_reset();    // => reset wifi part of WINC1500
+  //see https://github.com/arduino-libraries/WiFi101/issues/118
+    
 	// Connect to WPA/WPA2 network:
 	WiFi.begin(ssid, pass);
 	wifiRetries++;
 	//Watchdog.reset();
-	delay(1000);  // wait 1 seconds
+	delay(2000);  // wait 2 seconds
+ 
 	Udp.beginMulti(lanbahnip, lanbahnport);
-
+ 
+  Serial.println("reconnected after reset of wifi chip ");
+  
 	m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
 	Serial.println("deep sleep ENABLED");
 
