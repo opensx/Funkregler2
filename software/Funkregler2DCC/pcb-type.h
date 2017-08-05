@@ -13,16 +13,11 @@
 #define HWREV_D_0_1
 #define HW_STRING "HW_D0.1"
 
-#define MAX 31         // Selectrix
-//#define MAX 127     //DCC
 #define MAX_LOCO_ADDRESS    99   // for selectrix
 
-#define _DEBUG           // if debug => output to Serial Port
 
 #define INVALID_INT  (10000)   // invalid integer value, higher than any loco addr or speed
 
-#define CCMODE_SX    0
-#define CCMODE_DCC   1
 
 //******* AD calibration **********************************************
 

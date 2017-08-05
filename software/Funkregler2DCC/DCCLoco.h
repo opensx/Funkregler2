@@ -14,7 +14,8 @@ public:
 
     uint8_t toggleFunction(uint8_t i);
     
-    int16_t setSpeed(int16_t);  // speed (signed)
+    int16_t setSpeed(int16_t);  // speed (signed), -127 .. + 127
+    int16_t updateSpeed(int16_t); // arbitrary value, from encoder
     int16_t getSpeed(void);  // speed (signed)
     uint16_t getAbsSpeed(void);  // speed (positive)
     
@@ -45,6 +46,7 @@ private:
     uint16_t _absSpeed;   // abs(speed), no sign
     uint8_t  _functions;   // contains state of functions F0 ... F4
     String   _functionsString;  // contains state of functions F0 ... F4
+    uint32_t _modTime;  // last time the speed was updated from rotary encoder
 };
 
 #endif // DCCLOCO_H_

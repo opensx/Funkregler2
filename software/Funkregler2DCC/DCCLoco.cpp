@@ -113,8 +113,8 @@ uint16_t DCCLoco::setAddress(uint16_t a) {
  *  
  */
 int16_t DCCLoco::setSpeed(int16_t sp) { 
-	Serial.print("DCCLoco.setSpeed, sp=");
-	Serial.println(sp);
+	//Serial.print("DCCLoco.setSpeed, sp=");
+	//Serial.println(sp);
 
 	if (sp > MAX_SPEED) {
     sp = MAX_SPEED;
@@ -144,3 +144,43 @@ int16_t DCCLoco::setSpeed(int16_t sp) {
   return sp;
 }
 
+
+/** update speed from rotary decoder setting
+ *  
+ */
+int16_t DCCLoco::updateSpeed(int16_t newSpeed) { 
+    int16_t updatedSpeed;
+/* have a "zero with sign" i.e. stop the loco first
+         without changing the direction, then change the direction
+         but leave speed at 0, then normal speed setting */
+        if ((newSpeed < 0) && (_dir == 0)) {
+          updatedSpeed = 0;
+          setSpeed(0);
+          _dir = 1;
+        } else if ((newSpeed > 0) && (_dir != 0)) {
+          updatedSpeed = 0;
+          setSpeed(0);
+           _dir = 0;
+        } else if (newSpeed == 0) {
+          updatedSpeed = 0;
+          stop();
+        } else {
+          if ( 
+               ((millis() - _modTime) < 100) 
+               && (_absSpeed >= 5) 
+             ) {
+            if (newSpeed > getSpeed()) {
+              newSpeed += 10;
+              if (newSpeed > MAX_SPEED) newSpeed = MAX_SPEED;
+            } else {
+              newSpeed -= 10;
+              if (newSpeed < -MAX_SPEED) newSpeed = -MAX_SPEED;
+            } 
+            updatedSpeed = newSpeed;         
+          }
+                 
+          setSpeed(newSpeed);
+        }
+        _modTime = millis();
+        return updatedSpeed;
+}

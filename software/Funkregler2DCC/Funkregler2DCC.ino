@@ -7,7 +7,7 @@
  Buttons for Start-Address-Selection ("A"), Light (F0="L") and Function (F1="F")
 
  03 Aug 2017     special version only for DCC, added reset of WiFi part when
-                 no longer connected (rssi=0)  (SW_0.30)
+ no longer connected (rssi=0)  (SW_0.30)
  27 Sept. 2016   click/doubleclick Adr-Btn, prepare for HWREV_0_4 (not tested)
  08 Sept. 2016   using WiFi101 lib commit d27bf7c (fix for rssi=0)
  13 August 2016  hw-ddc-0.1 added with analog buttons for F0..F4
@@ -19,6 +19,9 @@
 
  *****************************************************************/
 #define BUFFER_LENGTH  32
+
+#define _DEBUG           // if debug => output to Serial Port   TEST
+#define DCCPP          // use DCCpp Protocol, connect to DCCpp Server
 
 #include <SPI.h>
 #include <WiFi101.h>
@@ -38,15 +41,13 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_30
-#define SW_STRING "SW_0.30"
+#define SW_REV_0_31
+#define SW_STRING "SW_0.31"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
 
 //*************** define command control system **********************
-
-
 
 //***** operating modes, changed by hitting the red "A" button *******
 #define MODE_NORMAL               0
@@ -63,7 +64,7 @@ Display7 disp;
 #define LIST_NETWORKS    // if defined, networks are scanned at start
 
 #define LOW_RSSI_LIMIT  (-88)    // below this limit or when rssi=0 the wifi chip
-                                 // will be reset
+// will be reset
 
 //************** rotary decoder definition ********************
 RotaryEncoderMax encoder(ENC1, ENC2);
@@ -116,7 +117,7 @@ long switchOffTimer;
 long announceTimer, blinkTimer, updateLocoTimer, updateTimer,
 		lastLocoCommandSentTime, connectTimer;
 long addrButtonTimer = 0;
-long lastSpeedModTime =0;
+long lastSpeedModTime = 0;
 long readFromCentral = 0;
 
 long sentRequestTime = 0;  // time of last Request of LocoSpeed from central
@@ -137,16 +138,21 @@ int wifiRetries = 0;
 String ssid;
 String pass;
 
-uint16_t ccmode = CCMODE_SX;
-
 DCCLoco loco;   // construct DCC loco
 
 uint16_t cal_33 = VOLT_3300;   // battery meas. cal constant
 uint16_t myid = 0;
 
+// ******************* for DCCpp ****************************************
+#ifdef DCCPP
+String response = "";
+WiFiClient dccppClient;
+IPAddress server(192, 168, 178, 211);
+const int port = 2560;
+#endif
+
 void setup() {
 
-  
 	// define frequency of interrupt
 	MyTimer5.begin(IRQ_FREQ);  // 200=for toggle every 5msec => 2  digits
 							   // 400 for 4 digit display to avoid flicker
@@ -165,11 +171,11 @@ void setup() {
 #endif
 
 #ifdef _DEBUG
-	Serial.begin(57600); // USB is always 12 Mbit/sec
+	Serial.begin(115200); // USB is always 12 Mbit/sec
 	long t1 = millis();
 	while ((!Serial) && ((millis() - t1) < 10000)) {
 		// make sure we read everything
-		//BUT wait only for 20 secs
+		//BUT wait only for 10 secs
 		// Watchdog.reset();   // no watchdog enabled so far
 		delay(100);
 	}
@@ -195,7 +201,7 @@ void setup() {
 	switchOffTimer = millis(); // resettimer
 	connectTimer = millis();
 #ifdef _DEBUG
-  listNetworks();
+	listNetworks();
 #endif
 	if (initFromEEPROM()) {
 		// there have been wifi values in the EEPROM
@@ -204,14 +210,22 @@ void setup() {
 		mode = MODE_WAITING_FOR_WIFI;
 	} else {
 		// go straight to error mode and wait for
-    // config button press
+		// config button press
 		mode = MODE_ERROR_NO_CONNECTION;
 		disp.dispCharacters('E', '2');
 	}
 	//Watchdog.enable(8192);
-#ifdef _DEBUG
-  Serial.println("DCC mode");
-#endif
+
+	if (WiFi.status() == WL_CONNECTED) {
+		if (dccppClient.connect(server, port)) {
+			Serial.println("connected to DCCpp server");
+
+		} else {
+			// if you didn't get a connection to the server:
+			Serial.println("connection to DCCpp server failed");
+		}
+	}
+
 }
 
 void initButtons() {
@@ -230,7 +244,7 @@ void initButtons() {
 	// address button
 	pinMode(ADDR_BTN, INPUT_PULLUP);
 	addrBtn.setClickTicks(300);
-	addrBtn.setPressTicks(5000);// 5 secs for long press => entering config mode
+	addrBtn.setPressTicks(5000); // 5 secs for long press => entering config mode
 	addrBtn.attachClick(addrClicked);
 	//addrBtn.attachDoubleClick(addrDoubleClicked);
 	addrBtn.attachLongPressStart(toggleConfig);
@@ -251,23 +265,23 @@ void initButtons() {
 
 	// functions
 	f0Btn.attachClick(f0Clicked);
-	f0Btn.setClickTicks(100);  // click detected after xx ms
+	f0Btn.setClickTicks(100);// click detected after xx ms
 	f1Btn.attachClick(f1Clicked);
 	f1Btn.setClickTicks(100);
-	f1Btn.setPressTicks(5000);  // 5 secs for long press => switch off
+	f1Btn.setPressTicks(5000);// 5 secs for long press => switch off
 	f1Btn.attachLongPressStart(switchOffBatt);
 
 	stopBtn.setClickTicks(100);
 
 	// address button
 	addrBtn.setClickTicks(300);
-	addrBtn.setPressTicks(5000); // 5 secs for long press => entering config mode
+	addrBtn.setPressTicks(5000);// 5 secs for long press => entering config mode
 	addrBtn.attachClick(addrClicked);
 	addrBtn.attachDoubleClick(addrDoubleClicked);
-	addrBtn.attachLongPressStart(toggleConfig);  
+	addrBtn.attachLongPressStart(toggleConfig);
 #endif
 
-stopBtn.attachClick(stopClicked);    // all hardware revisions
+	stopBtn.attachClick(stopClicked);    // all hardware revisions
 
 }
 
@@ -320,30 +334,32 @@ bool initFromEEPROM() {
 }
 
 void reconnectToWiFi() {
-  WiFi.end();
-  
-  // for now: RESET
-  
-  nm_bsp_reset();    // => reset wifi part of WINC1500
-  //see https://github.com/arduino-libraries/WiFi101/issues/118
-    
+	WiFi.end();
+
+	// for now: RESET
+
+	nm_bsp_reset();    // => reset wifi part of WINC1500
+	//see https://github.com/arduino-libraries/WiFi101/issues/118
+
 	// Connect to WPA/WPA2 network:
 	WiFi.begin(ssid, pass);
 	wifiRetries++;
 	//Watchdog.reset();
 	delay(2000);  // wait 2 seconds
- 
+
 	Udp.beginMulti(lanbahnip, lanbahnport);
- 
-  Serial.println("reconnected after reset of wifi chip ");
-  
+#ifdef _DEBUG 
+	Serial.println("reconnected after reset of wifi chip ");
+#endif  
 	m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
+#ifdef _DEBUG 
 	Serial.println("deep sleep ENABLED");
 
 	Serial.print("trying reconnect, millis=");
 	Serial.println(millis());
 	Serial.print("#retries=");
 	Serial.println(wifiRetries);
+#endif
 
 	// wait 2 seconds
 	//Watchdog.reset();
@@ -353,7 +369,7 @@ void reconnectToWiFi() {
 	if (WiFi.status() != WL_CONNECTED) {
 		mode = MODE_ERROR_NO_CONNECTION;
 	} else {
-	  mode = MODE_NORMAL;
+		mode = MODE_NORMAL;
 	}
 
 }
@@ -361,7 +377,7 @@ void reconnectToWiFi() {
 void connectToWiFi() {
 
 #ifdef _DEBUG
-	Serial.print("trying connect to ssid="); 
+	Serial.print("trying connect to ssid=");
 	Serial.print(ssid);
 	Serial.print("  pass=");
 	Serial.print(pass);
@@ -406,7 +422,6 @@ void connectToWiFi() {
 
 		mode = MODE_ERROR_NO_CONNECTION;
 
-
 	}
 	if (WiFi.status() == WL_CONNECTED) {
 		disp.dispCharacters('0', '0');
@@ -427,8 +442,8 @@ void updateBuffer() {
 	//batteryState = map(batteryVoltage , 3200, 4250, 0, 100);              //% of charge
 	char rev[] = HW_STRING ":" SW_STRING;
 	//int secs = (int) (millis() / 1000);
-	sprintf(buffer, "A FUNKR%d %d.%d.%d.%d %d %d %s %lu %d\n", myid, ip[0], ip[1],
-			ip[2], ip[3], batteryVoltage, rssi, rev, secs, wifiRetries);
+	sprintf(buffer, "A FUNKR%d %d.%d.%d.%d %d %d %s %lu %d\n", myid, ip[0],
+			ip[1], ip[2], ip[3], batteryVoltage, rssi, rev, secs, wifiRetries);
 }
 
 void readUdp() {
@@ -445,8 +460,43 @@ void readUdp() {
 	}
 }
 
+void readDCCpp() {
+	if (!dccppClient.connected())
+		return; // >>>>>>
+
+	if (dccppClient.available()) {
+		char c = dccppClient.read();
+		response += c;
+		if (c == '>') {
+			parseResponse();
+		}
+	}
+}
+
+void parseResponse() {
+	Serial.println(response);
+
+	if (response.charAt(0) != '<') {
+		Serial.println("ERROR in rec. command");
+	} else {
+		switch (response.charAt(1)) {
+		case 'p':
+			trackPower = response.charAt(2) - '0';
+			Serial.print("trackPower=");
+			if (trackPower) {
+				Serial.println("on");
+			} else {
+				Serial.println("off");
+			}
+			break;
+		}
+	}
+	response = "";
+}
+
 void sendAnnounceMessage() {
-  if (mode == MODE_ERROR_NO_CONNECTION) return;  // do nothing if in error mode
+	if (mode == MODE_ERROR_NO_CONNECTION)
+		return;  // do nothing if in error mode
 	static int lowRSSIcounter = 0;
 	if ((WiFi.status() == WL_CONNECTED) && (WiFi.RSSI() > LOW_RSSI_LIMIT)
 			&& (WiFi.RSSI() != 0)) {
@@ -467,7 +517,7 @@ void sendAnnounceMessage() {
 		lowRSSIcounter++;
 		if (lowRSSIcounter >= 2) {
 			reconnectToWiFi();
-      lowRSSIcounter = 0;
+			lowRSSIcounter = 0;
 		}
 	}
 }
@@ -479,7 +529,7 @@ void display_irq(void) {
 #ifdef DIGITS4
 	d++;
 	if (d >= 4)
-	d = 0;
+		d = 0;
 #else
 	if (d == 0) {
 		d = 1;
@@ -544,8 +594,8 @@ void addrClickEnd() {
 	uint16_t newAddress = addrSel.end();
 	if (newAddress != loco.getAddress()) {  // new loco
 		loco.setAddress(newAddress);
-    mode = MODE_NORMAL;
-    disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
+		mode = MODE_NORMAL;
+		disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
 
 	} else { // no change, just continue with stored value for current speed
 		encoder.setPosition(loco.getSpeed());
@@ -554,22 +604,13 @@ void addrClickEnd() {
 	}
 }
 
-void sendAndDisplaySpeed() {
-	if (WiFi.status() != WL_CONNECTED) {
-#ifdef _DEBUG
-		Serial.println("ERROR: wifi connection lost");
-#endif
-    return;
-		// connectToWiFi();
-	}
-
-  // address first
-  uint16_t addr = loco.getAddress();
-  uint16_t abssp = loco.getAbsSpeed();
-  uint8_t dir = loco.getBackward();
-  String func =loco.getF0F4String();
-  sprintf(buffer, "DCC1 %d %d %d %s\n", addr, abssp, dir, func.c_str());
-
+void sendLocoSpeedUdp() {
+// address first
+	uint16_t addr = loco.getAddress();
+	uint16_t abssp = loco.getAbsSpeed();
+	uint8_t dir = loco.getBackward();
+	String func = loco.getF0F4String();
+	sprintf(buffer, "DCC1 %d %d %d %s\n", addr, abssp, dir, func.c_str());
 
 #ifdef _DEBUG
 	Serial.print(buffer);  // contains an "\n" already
@@ -579,6 +620,44 @@ void sendAndDisplaySpeed() {
 	Udp.beginPacket(lanbahnip, lanbahnport);
 	Udp.write(buffer);
 	Udp.endPacket();
+}
+
+void sendLocoSpeedDCCpp() {
+#ifdef _DEBUG
+	Serial.println(buffer);
+#endif
+	if (!dccppClient.connected()) {
+		// TODO Reconnect
+#ifdef _DEBUG
+	Serial.println("dccpp not connected");
+#endif
+		return;
+	}
+
+	uint16_t addr = loco.getAddress();
+	uint16_t abssp = loco.getAbsSpeed();
+	uint8_t dir = loco.getBackward();
+	String func = loco.getF0F4String();
+	sprintf(buffer, "<t1 %d %d %d>", addr, abssp, dir, func.c_str());
+	//sprintf(buffer, "<t1 %d %d %d %s\n", addr, abssp, dir, func.c_str());
+
+
+	dccppClient.print(buffer);
+}
+
+void sendAndDisplaySpeed() {
+	if (WiFi.status() != WL_CONNECTED) {
+#ifdef _DEBUG
+		Serial.println("ERROR: wifi connection lost");
+#endif
+		return;
+		// connectToWiFi();
+	}
+#ifdef DCCPP
+	sendLocoSpeedDCCpp();
+#else
+	sendLocoSpeedUdp();
+#endif
 
 	disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
 
@@ -630,7 +709,7 @@ void interpretCommand(String s) {
 			}
 		}
 	}
-    //TODO loco state request from central station 
+	//TODO loco state request from central station
 }
 
 void functionClicked(uint8_t index) {
@@ -686,7 +765,7 @@ void stopClicked() {
 }
 
 //void stopLongClicked() {
-	// TODO
+// TODO
 //}
 
 /** parse the list of locos
@@ -727,15 +806,17 @@ void loop() {
 	f1Btn.tick();
 #endif
 
+#ifdef DCCPP
+	readDCCpp();
+#endif
 	readUdp();
 
-
-  if (mode == MODE_ERROR_NO_CONNECTION) {
-    // do nothing, just wait for button input (to switch off
-    // or to switch into config mode
-    delay(100);
-    disp.dispCharacters('E', '7');
-  } else if (mode == MODE_WAITING_FOR_WIFI) {
+	if (mode == MODE_ERROR_NO_CONNECTION) {
+		// do nothing, just wait for button input (to switch off
+		// or to switch into config mode
+		delay(100);
+		disp.dispCharacters('E', '7');
+	} else if (mode == MODE_WAITING_FOR_WIFI) {
 		delay(100);
 		if (WiFi.status() == WL_CONNECTED) {
 			mode = MODE_NORMAL;
@@ -754,16 +835,16 @@ void loop() {
 			addrSel.doLoop(false);  // always select from already existing list
 		}
 	} else if (mode == MODE_NORMAL) {
-  
-    // send the announce string every 20sec
-    if ((millis() - announceTimer) >= 20000) {
-      announceTimer = millis();
-      sendAnnounceMessage();
+
+		// send the announce string every 20sec
+		if ((millis() - announceTimer) >= 20000) {
+			announceTimer = millis();
+			sendAnnounceMessage();
 #ifdef _DEBUG
-      Serial.println(buffer);
+			Serial.println(buffer);
 #endif
-    }
-    
+		}
+
 		// send loco command refresh at least every 5 secs also without user interaction
 		if (((millis() - updateLocoTimer) > 5000)) {
 			updateLocoTimer = millis();
@@ -771,52 +852,20 @@ void loop() {
 			changedFlag = false;
 		}
 
-		// every 100ms check encoder for speed/functions change
+		// every 50ms check encoder for speed/functions change
 		if ((millis() - updateTimer) >= 50) {
 			updateTimer = millis();
-
-			long newSpeed;
-			newSpeed = encoder.getPositionMax(MAX_SPEED);
-      int16_t actSpeed = loco.getSpeed();
+			long newSpeed = encoder.getPositionMax(MAX_SPEED);
+			int16_t actSpeed = loco.getSpeed();
 			if (newSpeed != actSpeed) {
-				/* have a "zero with sign" i.e. stop the loco first
-				 without changing the direction, then change the direction
-				 but leave speed at 0, then normal speed setting */
-				if ((newSpeed < 0) && (loco.getBackward() == 0)) {
-					encoder.setPosition(0);
-					loco.setSpeed(0);
-					loco.setBackward(true);
-				} else if ((newSpeed > 0) && (loco.getBackward() != 0)) {
-					encoder.setPosition(0);
-					loco.setSpeed(0);
-					loco.setBackward(false);
-				} else if (newSpeed == 0) {
-					loco.stop();
-				} else {
-          if ( 
-               ((millis() - lastSpeedModTime) < 100) 
-               && (abs(actSpeed) >= 5) 
-             ) {
-            if (newSpeed > actSpeed) {
-              newSpeed += 10;
-              if (newSpeed > MAX_SPEED) newSpeed = MAX_SPEED;
-            } else {
-              newSpeed -= 10;
-              if (newSpeed < -MAX_SPEED) newSpeed = -MAX_SPEED;
-            }          
-          }
-                 
-					loco.setSpeed(newSpeed);
-          encoder.setPosition(newSpeed);
-				}
+				int16_t updatedSpeed = loco.updateSpeed(newSpeed);
+				encoder.setPosition(updatedSpeed);
 				changedFlag = true;
-       lastSpeedModTime = millis();
 			}
 			if (changedFlag == true) { // there was some user interaction
 				userInteraction();  // reset switch off timer
-				sendAndDisplaySpeed();  // dispSpeed() will also be called.
-				// reset changed flag
-				changedFlag = false;
+				sendAndDisplaySpeed(); // dispSpeed() will also be called.
+				changedFlag = false;  // reset changed flag
 			}
 		}
 
@@ -824,12 +873,7 @@ void loop() {
 		//disp.blinkCharacters('-','-');
 		// check for timeout for waiting for response
 		if ((millis() - sentRequestTime) > 2000) {
-#ifdef SX
-			loco.setFromSXData(0); // reset loco
-#endif
-#ifdef DCC
-      loco.init();
-#endif
+			loco.init();
 			mode = MODE_NORMAL;
 			encoder.setPosition(0); // reset encoder position to 0
 			disp.dispNumberSigned(loco.getSpeed(), loco.getBackward());
@@ -840,7 +884,7 @@ void loop() {
 		delay(20);
 		long timeout = millis();
 		if (!Serial)
-			Serial.begin(57600);
+			Serial.begin(115200);
 		while (!Serial && ((millis() - timeout) < 20000)) {
 			// wait for 20 seconds for serial usb connection.
 			//Watchdog.reset();
@@ -924,7 +968,7 @@ void toggleConfig(void) {
 		if (!Serial) { //  config only works with USB connected
 			uint32_t timeout = millis();
 
-			Serial.begin(57600); // must initialize when not in debug
+			Serial.begin(115200); // must initialize when not in debug
 			while (!Serial && ((millis() - timeout) < 10000)) { // 10 secs timeout
 				delay(100);
 				//Watchdog.reset();
@@ -1077,58 +1121,58 @@ bool updateConfig(String line) {
 }
 
 void listNetworks() {
-  // scan for nearby networks:
-  Serial.println("** Scan Networks **");
-  int numSsid = WiFi.scanNetworks();
-  if (numSsid == -1)
-  {
-    Serial.println("Couldn't get a wifi connection");
-    while (true);
-  }
+	// scan for nearby networks:
+	Serial.println("** Scan Networks **");
+	int numSsid = WiFi.scanNetworks();
+	if (numSsid == -1) {
+		Serial.println("Couldn't get a wifi connection");
+		while (true)
+			;
+	}
 
-  // print the list of networks seen:
-  Serial.print("number of available networks:");
-  Serial.println(numSsid);
+	// print the list of networks seen:
+	Serial.print("number of available networks:");
+	Serial.println(numSsid);
 
-  // print the network number and name for each network found:
-  for (int thisNet = 0; thisNet < numSsid; thisNet++) {
-    Serial.print(thisNet);
-    Serial.print(") ");
-    Serial.print(WiFi.SSID(thisNet));
-    Serial.print("\tSignal: ");
-    Serial.print(WiFi.RSSI(thisNet));
-    Serial.print(" dBm");
-    Serial.print("\tEncryption: ");
-    printEncryptionType(WiFi.encryptionType(thisNet));
-    Serial.flush();
-  }
+	// print the network number and name for each network found:
+	for (int thisNet = 0; thisNet < numSsid; thisNet++) {
+		Serial.print(thisNet);
+		Serial.print(") ");
+		Serial.print(WiFi.SSID(thisNet));
+		Serial.print("\tSignal: ");
+		Serial.print(WiFi.RSSI(thisNet));
+		Serial.print(" dBm");
+		Serial.print("\tEncryption: ");
+		printEncryptionType(WiFi.encryptionType(thisNet));
+		Serial.flush();
+	}
 }
 
 void printEncryptionType(int thisType) {
-  // read the encryption type and print out the name:
-  switch (thisType) {
-    case ENC_TYPE_WEP:
-      Serial.println("WEP");
-      break;
-    case ENC_TYPE_TKIP:
-      Serial.println("WPA");
-      break;
-    case ENC_TYPE_CCMP:
-      Serial.println("WPA2");
-      break;
-    case ENC_TYPE_NONE:
-      Serial.println("None");
-      break;
-    case ENC_TYPE_AUTO:
-      Serial.println("Auto");
-      break;
-  }
+	// read the encryption type and print out the name:
+	switch (thisType) {
+	case ENC_TYPE_WEP:
+		Serial.println("WEP");
+		break;
+	case ENC_TYPE_TKIP:
+		Serial.println("WPA");
+		break;
+	case ENC_TYPE_CCMP:
+		Serial.println("WPA2");
+		break;
+	case ENC_TYPE_NONE:
+		Serial.println("None");
+		break;
+	case ENC_TYPE_AUTO:
+		Serial.println("Auto");
+		break;
+	}
 }
 
 void doReset(void) {
-   Serial.println("Performing reset");
-  // Watchdog.enable(16);
-   delay(50);
+	Serial.println("Performing reset");
+	// Watchdog.enable(16);
+	delay(50);
 }
 // ******************************************** snippets ********************************************
 /* TODO TRACKPOWER ON/off
