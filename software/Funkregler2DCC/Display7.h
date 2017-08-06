@@ -14,7 +14,7 @@
 #include <Arduino.h>
 #include "pcb-type.h"
 
-#define NCHAR   19
+#define NCHAR   20
 #define NSEG     8      // a   b   c  d   e  f  g  DP
 #define DP_SEG   7
 #define D_ON     1
@@ -31,8 +31,8 @@ public:
 	void decBlink(int disp);   // set the decimal point to blink
 	void doDisplay(int digit);
 	void switchOff();
-	void dispChar(int d, char c);
-	void blinkChar(int d, char c);
+	void dispChar(uint8_t d, char c);
+	void blinkChar(uint8_t d, char c);
 
 	void dispCharacters(char c1, char c2);
 	void dispCharacters(char c1, char c2, uint32_t block);

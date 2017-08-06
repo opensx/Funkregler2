@@ -41,8 +41,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_31
-#define SW_STRING "SW_0.31"
+#define SW_REV_0_32
+#define SW_STRING "SW_0.32"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -219,6 +219,7 @@ void setup() {
 	if (WiFi.status() == WL_CONNECTED) {
 		if (dccppClient.connect(server, port)) {
 			Serial.println("connected to DCCpp server");
+			dccppClient.print("<s>");
 
 		} else {
 			// if you didn't get a connection to the server:
@@ -226,6 +227,8 @@ void setup() {
 		}
 	}
 
+	//disp.dispCharacters(' ', 'o', 'F', 'F', 1000);
+	//delay(2000);
 }
 
 void initButtons() {
@@ -275,14 +278,16 @@ void initButtons() {
 
 	// address button
 	addrBtn.setClickTicks(300);
-	addrBtn.setPressTicks(5000);// 5 secs for long press => entering config mode
+	addrBtn.setPressTicks(5000);// 5 secs for long press => config
 	addrBtn.attachClick(addrClicked);
 	addrBtn.attachDoubleClick(addrDoubleClicked);
 	addrBtn.attachLongPressStart(toggleConfig);
 #endif
 
+// all hardware revisions
+	stopBtn.setPressTicks(3000); // 3 secs for long press => toggle power
 	stopBtn.attachClick(stopClicked);    // all hardware revisions
-
+	stopBtn.attachLongPressStart(stopLongPress);
 }
 
 /** get mode setting, the locoList and the currentLoco from the EEPROM
@@ -523,7 +528,8 @@ void sendAnnounceMessage() {
 }
 
 // update the display every 5msec
-// alternate between left and right display (or all 4 digits in case of 4-digit display
+// alternate between left and right display
+//       (or all 4 digits in case of 4-digit display)
 void display_irq(void) {
 	static int d = 0;
 #ifdef DIGITS4
@@ -539,6 +545,35 @@ void display_irq(void) {
 #endif
 	disp.doDisplay(d);
 }
+
+void stopLongPress() {
+#ifdef _DEBUG
+	Serial.println("stopLongPress(Start)");
+#endif
+#ifdef DCCPP
+	if (dccppClient.connected()) {
+		if (trackPower) {
+			trackPower = 0;
+			dccppClient.print("<0>");
+			disp.dispCharacters(' ', 'o', 'F','F', 1000);
+		} else {
+			trackPower = 1;
+			dccppClient.print("<1>");
+			disp.dispCharacters(' ', 'o', 'n',' ', 1000);
+		}
+	}
+#ifdef _DEBUG
+	else {
+		Serial.println();
+		Serial.println("dccpp client not connected");
+	}
+	Serial.print("toggle Power=");
+	Serial.println(trackPower);
+#endif  // _DEBUG
+#endif  //DCCPP
+
+}
+
 
 /** start address selection mode when address button is clicked
  *   release address mode when clicked again
@@ -790,6 +825,10 @@ void sendTrackPower() {
 	Udp.beginPacket(lanbahnip, lanbahnport);
 	Udp.write(buffer);
 	Udp.endPacket();
+
+#ifdef DCCPP
+	//TODO
+#endif
 
 }
 
@@ -1174,20 +1213,4 @@ void doReset(void) {
 	// Watchdog.enable(16);
 	delay(50);
 }
-// ******************************************** snippets ********************************************
-/* TODO TRACKPOWER ON/off
- if ( encButtonPressed
- && ((millis() - encButtonTimer) > 1300 )
- && (trackPower != POWER_UNKNOWN) ) {
- // toggle trackPower (only when in known state)
- if (trackPower == POWER_ON) {
- trackPower = POWER_OFF;
- } else {
- trackPower = POWER_ON;
- }
- sendTrackPower();
- encButtonPressed = 0;  // do not toggle again
- #ifdef _DEBUG
- Serial.println("toggled trackpower.");
- #endif
- }  // endif encButtonTimer  */
+
