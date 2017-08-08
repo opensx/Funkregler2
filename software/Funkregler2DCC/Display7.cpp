@@ -34,7 +34,7 @@ static int _number[NCHAR][7] = { { 1, 1, 1, 1, 1, 1, 0 },  // 0
 		{ 0, 1, 0, 0, 0, 1, 1 },  // n
 		{ 0, 0, 0, 0, 0, 0, 1 },  // -
 		{ 0, 0, 0, 0, 0, 0, 0 },  // blank
-        { 1, 0, 0, 0, 0, 0, 1 }   // =
+		{ 1, 0, 0, 0, 0, 0, 1 }   // =
 };
 
 // pins on arduino to drive segments, active low
@@ -96,7 +96,7 @@ void Display7::init(void) {
 
 // never switch on both!
 // (SAMD21 max io current = 7mA)
-void Display7::switchOn(int digit) {
+void Display7::switchOn(int disp) {
 
 	digitalWrite(ANODE1, HIGH);
 	digitalWrite(ANODE2, HIGH);
@@ -105,20 +105,30 @@ void Display7::switchOn(int digit) {
 	digitalWrite(ANODE4, HIGH);
 #endif
 
-	if (digit == 0) {
+	if (disp == 0) {
 		digitalWrite(ANODE1, LOW);
-	} else if (digit == 1) {
+	} else if (disp == 1) {
 		digitalWrite(ANODE2, LOW);
-	} else if (digit == 2) {
+	} else if (disp == 2) {
 #ifdef DIGITS4
 		digitalWrite(ANODE3, LOW);
 #endif
-	} else if (digit == 3) {
+	} else if (disp == 3) {
 #ifdef DIGITS4
 		digitalWrite(ANODE4, LOW);
 #endif
 	}
 	// else switch both off
+}
+
+void Display7::setPowerBlink(bool state) {
+	if (state == true) {
+		_segmentOn[1][DP_SEG] = BLINK;
+		_segmentOn[2][DP_SEG] = BLINK;
+	} else {
+		_segmentOn[1][DP_SEG] = 0;
+		_segmentOn[2][DP_SEG] = 0;
+	}
 }
 
 void Display7::setDecPoint(int disp, bool state) {
@@ -127,6 +137,7 @@ void Display7::setDecPoint(int disp, bool state) {
 	} else {
 		_segmentOn[disp][DP_SEG] = 0;
 	}
+
 }
 
 void Display7::decBlink(int disp) {
@@ -219,7 +230,7 @@ void Display7::dispCharacters(char c1, char c2) {
 
 void Display7::dispCharacters(char c1, char c2, uint32_t block) {
 	if (millis() < _blockTime)
-			return;
+		return;
 	_blockTime = millis() + block;
 #ifdef DIGITS4
 	dispChar(0, ' ');
@@ -247,7 +258,7 @@ void Display7::dispCharacters(char c1, char c2, char c3, char c4) {
 void Display7::dispCharacters(char c1, char c2, char c3, char c4,
 		uint32_t block) {
 	if (millis() < _blockTime)
-			return;
+		return;
 
 	_blockTime = millis() + block;
 
@@ -256,13 +267,12 @@ void Display7::dispCharacters(char c1, char c2, char c3, char c4,
 	dispChar(2, c3);
 	dispChar(3, c4);
 
-
 }
 #endif
 
 void Display7::blinkCharacters(char c1, char c2) {
 	if (millis() < _blockTime)
-			return;
+		return;
 
 #ifdef DIGITS4
 	blinkChar(0, ' ');
@@ -278,7 +288,7 @@ void Display7::blinkCharacters(char c1, char c2) {
 #ifdef DIGITS4
 void Display7::blinkCharacters(char c1, char c2, char c3, char c4) {
 	if (millis() < _blockTime)
-			return;
+		return;
 
 	blinkChar(0, c1);
 	blinkChar(1, c2);
@@ -312,14 +322,14 @@ void Display7::dispNumber(int n) {
 		dispChar(1, '-');
 		dispChar(2, '-');
 	} else {
-    int h = n / 100;
-    if (h >= 1) {
-      dispChar(0, '0' + h);
-    } else {
-      dispChar(0, ' ');
-    }
+		int h = n / 100;
+		if (h >= 1) {
+			dispChar(0, '0' + h);
+		} else {
+			dispChar(0, ' ');
+		}
 		int z = n % 100;
-		dispChar(1, '0' + (z/10));
+		dispChar(1, '0' + (z / 10));
 		dispChar(2, '0' + n % 10);
 	}
 	dispChar(3, ' ');
@@ -352,7 +362,7 @@ void Display7::dispNumberSigned(int nsigned, bool backward) {
 
 void Display7::dispBlinkNumber(int n) {
 	if (millis() < _blockTime)
-			return;
+		return;
 	setDecPoint(BW, false);
 	setDecPoint(FW, false);
 #ifdef DIGITS4

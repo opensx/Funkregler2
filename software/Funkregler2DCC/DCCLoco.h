@@ -34,6 +34,7 @@ public:
     void setFromDCCData(uint8_t);
 
     String getF0F4String(void);
+    String getDCCppFunctionsString(void);  // function string for DCCpp
 
     void init(void);
 
@@ -46,7 +47,10 @@ private:
     uint16_t _absSpeed;   // abs(speed), no sign
     uint8_t  _functions;   // contains state of functions F0 ... F4
     String   _functionsString;  // contains state of functions F0 ... F4
+    String   _functionsStringDCCpp;
     uint32_t _modTime;  // last time the speed was updated from rotary encoder
+
+    void _setDCCppFunctionsString(void);  // calculate the DCCpp functions String
 };
 
 #endif // DCCLOCO_H_

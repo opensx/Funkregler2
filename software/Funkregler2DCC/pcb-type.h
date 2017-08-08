@@ -5,6 +5,7 @@
 #ifndef PCB_TYPE_H_
 #define PCB_TYPE_H_
 
+#include <Arduino.h>
 //********************* general - HW independent
 
 //#define HWREV_0_3   // test pcb rev 0.3 with EEPROM

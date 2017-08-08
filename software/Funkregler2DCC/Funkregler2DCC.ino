@@ -89,7 +89,7 @@ Button f0Btn = Button(856, &f0Clicked);
 Button f1Btn = Button(709, &f1Clicked);
 Button f2Btn = Button(10, &f2Clicked, &switchOffBatt, 5000);
 Button f3Btn = Button(522, &f3Clicked);
-Button f4Btn = Button(335, &f4Clicked);
+Button f4Btn = Button(335, &f4Clicked, &switchOffBatt, 5000);
 #elif defined (HWREV_0_4)   // 2-digit display, 2 function leds
 OneButton stopBtn(STOP_BTN, true);
 AnalogButtons analogButtons = AnalogButtons(ANALOG_BTN_PIN, INPUT, 2, 40);
@@ -152,6 +152,8 @@ const int port = 2560;
 #endif
 
 void setup() {
+	pinMode(BATT_ON, OUTPUT);
+	digitalWrite(BATT_ON, HIGH);  // batt power on
 
 	// define frequency of interrupt
 	MyTimer5.begin(IRQ_FREQ);  // 200=for toggle every 5msec => 2  digits
@@ -161,8 +163,7 @@ void setup() {
 	// start the timer
 	MyTimer5.start();
 
-	pinMode(BATT_ON, OUTPUT);
-	digitalWrite(BATT_ON, HIGH);  // batt power on
+
 	disp.setDecPoint(BW, true);
 
 #ifdef HWREV_0_4     // enable function led outputs
@@ -173,12 +174,14 @@ void setup() {
 #ifdef _DEBUG
 	Serial.begin(115200); // USB is always 12 Mbit/sec
 	long t1 = millis();
-	while ((!Serial) && ((millis() - t1) < 10000)) {
+	/*
+	 *
+	 while ((!Serial) && ((millis() - t1) < 10000)) {
 		// make sure we read everything
 		//BUT wait only for 10 secs
 		// Watchdog.reset();   // no watchdog enabled so far
 		delay(100);
-	}
+	}  */
 
 #endif
 
@@ -390,7 +393,7 @@ void connectToWiFi() {
 	Serial.println(wifiRetries);
 #endif
 #ifdef DIGITS4
-	disp.blinkCharacters('1', '2', '3', '4');
+	disp.blinkCharacters('-', '-', '-', '-');
 #else
 	disp.blinkCharacters('-', '-');
 #endif
@@ -473,12 +476,16 @@ void readDCCpp() {
 		char c = dccppClient.read();
 		response += c;
 		if (c == '>') {
-			parseResponse();
+			parseDCCppResponse();
 		}
 	}
 }
 
-void parseResponse() {
+/*
+ * parse the response from DCCpp command station
+ * currently on the trackpower is read
+ */
+void parseDCCppResponse() {
 	Serial.println(response);
 
 	if (response.charAt(0) != '<') {
@@ -488,10 +495,13 @@ void parseResponse() {
 		case 'p':
 			trackPower = response.charAt(2) - '0';
 			Serial.print("trackPower=");
+
 			if (trackPower) {
 				Serial.println("on");
+				disp.setPowerBlink(false);
 			} else {
 				Serial.println("off");
+				disp.setPowerBlink(true);
 			}
 			break;
 		}
@@ -555,11 +565,11 @@ void stopLongPress() {
 		if (trackPower) {
 			trackPower = 0;
 			dccppClient.print("<0>");
-			disp.dispCharacters(' ', 'o', 'F','F', 1000);
+			disp.dispCharacters(' ', 'o', 'F', 'F', 1000);
 		} else {
 			trackPower = 1;
 			dccppClient.print("<1>");
-			disp.dispCharacters(' ', 'o', 'n',' ', 1000);
+			disp.dispCharacters(' ', 'o', 'n', ' ', 1000);
 		}
 	}
 #ifdef _DEBUG
@@ -573,7 +583,6 @@ void stopLongPress() {
 #endif  //DCCPP
 
 }
-
 
 /** start address selection mode when address button is clicked
  *   release address mode when clicked again
@@ -657,27 +666,42 @@ void sendLocoSpeedUdp() {
 	Udp.endPacket();
 }
 
-void sendLocoSpeedDCCpp() {
-#ifdef _DEBUG
-	Serial.println(buffer);
-#endif
+void sendLocoFunctionsDCCpp() {
 	if (!dccppClient.connected()) {
-		// TODO Reconnect
+
 #ifdef _DEBUG
-	Serial.println("dccpp not connected");
+		Serial.println("dccpp not connected, reconnecting");
 #endif
+		dccppClient.connect(server, port);
+		return;
+	}
+
+	dccppClient.print(loco.getDCCppFunctionsString());
+#ifdef _DEBUG
+	Serial.print("DCC++: ");
+	Serial.println(loco.getDCCppFunctionsString());
+#endif
+}
+
+void sendLocoSpeedDCCpp() {
+
+	if (!dccppClient.connected()) {
+#ifdef _DEBUG
+		Serial.println("dccpp not connected, reconnecting");
+#endif
+		dccppClient.connect(server, port);
 		return;
 	}
 
 	uint16_t addr = loco.getAddress();
 	uint16_t abssp = loco.getAbsSpeed();
 	uint8_t dir = loco.getBackward();
-	String func = loco.getF0F4String();
-	sprintf(buffer, "<t1 %d %d %d>", addr, abssp, dir, func.c_str());
-	//sprintf(buffer, "<t1 %d %d %d %s\n", addr, abssp, dir, func.c_str());
-
-
+	sprintf(buffer, "<t1 %d %d %d>", addr, abssp, dir);  // only speed and dir
 	dccppClient.print(buffer);
+#ifdef _DEBUG
+	Serial.print("DCC++: ");
+	Serial.println(buffer);
+#endif
 }
 
 void sendAndDisplaySpeed() {
@@ -755,6 +779,20 @@ void functionClicked(uint8_t index) {
 #endif
 	if (mode == MODE_NORMAL) {  // ignore in other modes
 		uint8_t val = loco.toggleFunction(index);
+#ifdef DCCPP
+		String s = loco.getDCCppFunctionsString();
+#ifdef _DEBUG
+		Serial.println(s);
+#endif
+		dccppClient.print(s);
+#endif
+#ifdef _DEBUG
+		Serial.print("F");
+		Serial.print(index, DEC);
+		Serial.print("=");
+		Serial.println(val, DEC);
+		Serial.println(loco.getF0F4String());
+#endif
 #ifdef HWREV_D_0_1
 		disp.dispCharacters('F', '0' + index, '=', '0' + val, 1000);
 #endif
@@ -795,6 +833,7 @@ void stopClicked() {
 		loco.stop();  // does not change direction!
 		changedFlag = true;
 		encoder.setPosition(0);
+		updateTimer = millis();  // do read encoder during next 50msec
 	}
 	userInteraction();  // reset switch off timer
 }
@@ -887,7 +926,10 @@ void loop() {
 		// send loco command refresh at least every 5 secs also without user interaction
 		if (((millis() - updateLocoTimer) > 5000)) {
 			updateLocoTimer = millis();
-			sendAndDisplaySpeed();  // dispSpeed() will also be called.
+			sendAndDisplaySpeed();  // dispSpeed() will also be called
+#ifdef DCCPP
+			sendLocoFunctionsDCCpp();  // separate message in case of DCCpp
+#endif
 			changedFlag = false;
 		}
 
@@ -968,27 +1010,11 @@ void loop() {
 
 void switchOffBatt() {
 	// switch off
-	digitalWrite(BATT_ON, LOW); // ==>> THIS IS THE END.
+	digitalWrite(BATT_ON, LOW);
+	        // ==>> THIS IS THE END (if not connected to USB)
 
 }
-/** check if input line selects a valid cc value
- *  return INVALID, if not possible
- *  return ccmode (int), if possible
- */
 
-/*int isValidCCMode(String s) {
- if (s.indexOf('=') != -1) {  // should be not necessary
- String val = s.substring(s.indexOf('=') + 1, s.indexOf('\n'));
- String newcc = s_ccmode[ccmode];
- for (int i = 0; i < N_CCMODE; i++) {
- if (val.equalsIgnoreCase(s_ccmode[i])) {
- ccmode = i;
- return ccmode;
- }
- }
- }
- return INVALID;
- }  */
 
 void toggleConfig(void) {
 #ifdef DEBUG

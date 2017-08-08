@@ -26,9 +26,10 @@ class Display7 {
 public:
 	Display7(void);
 	void init(void);
-	void switchOn(int digit);  // switch on left or right display
+	void switchOn(int disp);  // switch on 1 of the four digits
 	void setDecPoint(int disp, bool on); // switch on/off decimal point left or right
 	void decBlink(int disp);   // set the decimal point to blink
+	void setPowerBlink(bool state);   //middle 2 dec.points
 	void doDisplay(int digit);
 	void switchOff();
 	void dispChar(uint8_t d, char c);
@@ -43,8 +44,8 @@ public:
 	void dispCharacters(char c1, char c2, char c3, char c4, uint32_t block);
 	void blinkCharacters(char c1, char c2, char c3, char c4);
  #endif
-	void dispError(char c2);   // 'Ec2' blinking
-	void dispNumber(int n);
+	void dispError(char c);   //  E'c' blinking
+	void dispNumber(int n);   //0...199
 	void dispNumberSigned(int n, bool back);
 	void dispBlinkNumber(int n);
 	void setDim(bool);bool isDimming();

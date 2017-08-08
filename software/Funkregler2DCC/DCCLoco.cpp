@@ -16,12 +16,14 @@ DCCLoco::DCCLoco() {
 	_functions = 0;
 	_changed = 1;
 	_absSpeed = 0;    // positive (=abs(actual v))
-  _dir = 0;
-  _functionsString = "0 0 0 0 0";
+	_dir = 0;
+	_functionsString = "0 0 0 0 0";
+	_functionsStringDCCpp = String("<f " + String(_address));
+	_functionsStringDCCpp += " 128>";
 }
 
 DCCLoco::DCCLoco(int16_t a) {
-	if ((a > 0) && (a <= MAX_ADDRESS)) { 
+	if ((a > 0) && (a <= MAX_ADDRESS)) {
 		_address = a;
 	} else {
 		_address = 3;
@@ -29,16 +31,16 @@ DCCLoco::DCCLoco(int16_t a) {
 	_functions = 0;
 	_changed = 1;
 	_absSpeed = 0;
-  _dir = 0;
-  _functionsString = "0 0 0 0 0";
+	_dir = 0;
+	_functionsString = "0 0 0 0 0";
 }
 
 void DCCLoco::init() {
-  _functions = 0;
-  _changed = 1;
-  _absSpeed = 0;
-  _dir = 0;
-  _functionsString = "0 0 0 0 0"; 
+	_functions = 0;
+	_changed = 1;
+	_absSpeed = 0;
+	_dir = 0;
+	_functionsString = "0 0 0 0 0";
 }
 
 uint8_t DCCLoco::hasChanged() {
@@ -64,23 +66,57 @@ int16_t DCCLoco::getSpeed() {
 }
 
 uint16_t DCCLoco::getAbsSpeed() {
-  return _absSpeed; // absspeed is always positive
+	return _absSpeed; // absspeed is always positive
 
 }
 
 uint8_t DCCLoco::toggleFunction(uint8_t i) {
-  uint8_t funcI = _functions & (1 << i);
+	if (i > 8)
+		return 0;
+
+	uint8_t funcI = _functions & (1 << i);
 	if (funcI) {
-     _functions &= ~(1 << i);
-     _functionsString.setCharAt((2*i),'0');
+		_functions &= ~(1 << i);
+		_functionsString.setCharAt((2 * i), '0');
+		_setDCCppFunctionsString();
+		return 0;
 	} else {
- 	   _functions |=  (1 << i);
-     _functionsString.setCharAt((2*i),'1'); 
-  }
+		_functions |= (1 << i);
+		_functionsString.setCharAt((2 * i), '1');
+		_setDCCppFunctionsString();
+		return 1;
+	}
 }
 
 String DCCLoco::getF0F4String() {
-  return _functionsString;
+	return _functionsString;
+}
+
+String DCCLoco::getDCCppFunctionsString() {
+	return _functionsStringDCCpp;
+}
+
+/*<f CAB BYTE1 [BYTE2]>
+ * To set functions F0-F4 on (=1) or off (=0):
+ *
+ *    BYTE1:  128 + F1*1 + F2*2 + F3*4 + F4*8 + F0*16
+ *    BYTE2:  omitted  */
+void DCCLoco::_setDCCppFunctionsString() {
+	_functionsStringDCCpp = String("<f " + String(_address));
+	_functionsStringDCCpp += ' ';
+	uint8_t b = 128;
+	if (_functions & (1 << 1))
+		b += 1;
+	if (_functions & (1 << 2))
+		b += 2;
+	if (_functions & (1 << 3))
+		b += 4;
+	if (_functions & (1 << 4))
+		b += 8;
+	if (_functions & (1 << 0))
+		b += 16;
+	_functionsStringDCCpp += b;
+	_functionsStringDCCpp += '>';
 }
 
 uint8_t DCCLoco::getBackward() {
@@ -89,9 +125,9 @@ uint8_t DCCLoco::getBackward() {
 
 void DCCLoco::setBackward(bool b) {
 	if (b == true) {
-		_dir=1;
+		_dir = 1;
 	} else {
-		_dir=0;
+		_dir = 0;
 	}
 }
 
@@ -105,23 +141,22 @@ uint16_t DCCLoco::setAddress(uint16_t a) {
 	} else {
 		_address = 3;
 	}
+	_setDCCppFunctionsString();   // must be re-evaluated
 	return _address;
 }
-
 
 /** set the speed from number -127 .. +127
  *  
  */
-int16_t DCCLoco::setSpeed(int16_t sp) { 
+int16_t DCCLoco::setSpeed(int16_t sp) {
 	//Serial.print("DCCLoco.setSpeed, sp=");
 	//Serial.println(sp);
 
 	if (sp > MAX_SPEED) {
-    sp = MAX_SPEED;
+		sp = MAX_SPEED;
 	} else if (sp < -MAX_SPEED) {
-    sp = -MAX_SPEED;
+		sp = -MAX_SPEED;
 	}
-		
 
 	uint16_t _newSpeed;
 	uint8_t _newDir = _dir;
@@ -132,55 +167,52 @@ int16_t DCCLoco::setSpeed(int16_t sp) {
 	} else if (sp > 0) {
 		_newDir = 0;
 	}
-	_newSpeed = (uint16_t)abs(sp);
+	_newSpeed = (uint16_t) abs(sp);
 
 	// did speed or direction change ?
-	if ((_newSpeed != _absSpeed)
-			|| (_newDir != _dir)) {
+	if ((_newSpeed != _absSpeed) || (_newDir != _dir)) {
 		_absSpeed = _newSpeed;
-    _dir = _newDir;
+		_dir = _newDir;
 		_changed = 1;
 	}
-  return sp;
+	return sp;
 }
-
 
 /** update speed from rotary decoder setting
  *  
  */
-int16_t DCCLoco::updateSpeed(int16_t newSpeed) { 
-    int16_t updatedSpeed;
-/* have a "zero with sign" i.e. stop the loco first
-         without changing the direction, then change the direction
-         but leave speed at 0, then normal speed setting */
-        if ((newSpeed < 0) && (_dir == 0)) {
-          updatedSpeed = 0;
-          setSpeed(0);
-          _dir = 1;
-        } else if ((newSpeed > 0) && (_dir != 0)) {
-          updatedSpeed = 0;
-          setSpeed(0);
-           _dir = 0;
-        } else if (newSpeed == 0) {
-          updatedSpeed = 0;
-          stop();
-        } else {
-          if ( 
-               ((millis() - _modTime) < 100) 
-               && (_absSpeed >= 5) 
-             ) {
-            if (newSpeed > getSpeed()) {
-              newSpeed += 10;
-              if (newSpeed > MAX_SPEED) newSpeed = MAX_SPEED;
-            } else {
-              newSpeed -= 10;
-              if (newSpeed < -MAX_SPEED) newSpeed = -MAX_SPEED;
-            } 
-            updatedSpeed = newSpeed;         
-          }
-                 
-          setSpeed(newSpeed);
-        }
-        _modTime = millis();
-        return updatedSpeed;
+int16_t DCCLoco::updateSpeed(int16_t newSpeed) {
+	int16_t updatedSpeed;
+	/* have a "zero with sign" i.e. stop the loco first
+	 without changing the direction, then change the direction
+	 but leave speed at 0, then normal speed setting */
+	if ((newSpeed < 0) && (_dir == 0)) {
+		updatedSpeed = 0;
+		setSpeed(0);
+		_dir = 1;
+	} else if ((newSpeed > 0) && (_dir != 0)) {
+		updatedSpeed = 0;
+		setSpeed(0);
+		_dir = 0;
+	} else if (newSpeed == 0) {
+		updatedSpeed = 0;
+		stop();
+	} else {
+		if (((millis() - _modTime) < 100) && (_absSpeed >= 5)) {
+			if (newSpeed > getSpeed()) {
+				newSpeed += 10;
+				if (newSpeed > MAX_SPEED)
+					newSpeed = MAX_SPEED;
+			} else {
+				newSpeed -= 10;
+				if (newSpeed < -MAX_SPEED)
+					newSpeed = -MAX_SPEED;
+			}
+			updatedSpeed = newSpeed;
+		}
+
+		setSpeed(newSpeed);
+	}
+	_modTime = millis();
+	return updatedSpeed;
 }
