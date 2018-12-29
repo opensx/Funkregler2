@@ -6,8 +6,8 @@
  Rotary Encoder for Speed and Address Selection
  Buttons for Start-Address-Selection ("A"), Light (F0="L") and Function (F1="F")
 
+ 16 Dec 2018     disabled DCC (compile error)
  27 Sept. 2016   click/doubleclick Adr-Btn, prepare for HWREV_0_4 (not tested)
- 08 Sept. 2016   using WiFi101 lib commit d27bf7c (fix for rssi=0)
  13 August 2016  hw-ddc-0.1 added with analog buttons for F0..F4
  06 August 2016  hw-rev 0.3 added, refactored addr selection and eeprom usage
  30 July 2016    added "wifi-lost" check
@@ -17,8 +17,10 @@
 
  *****************************************************************/
 #define BUFFER_LENGTH  32
-#define DCC
-//#define SX
+//#define DCC
+#define SX
+
+#define _DEBUG           // if debug => output to Serial Port
 
 
 #include <SPI.h>
@@ -26,7 +28,8 @@
 #include <WiFiUdp.h>
 #include <Wire.h>
 #include <OneButton.h>
-#include <AnalogButtons.h>
+#include <Button.h>
+//#include <AnalogButtons.h>
 #include <Timer5.h>
 #include <Adafruit_SleepyDog.h>
 
@@ -37,16 +40,16 @@
 #include "sxutils.h"  // includes debug settings
 #include "SXLoco.h"
 #endif
-#ifdef DCC
-#include "dccutils.h"  // includes debug settings
-#include "DCCLoco.h"
-#endif
+//#ifdef DCC
+//#include "dccutils.h"  // includes debug settings
+//#include "DCCLoco.h"
+//#endif
 #include "RotaryEncoderMax.h"   // special version
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_28
-#define SW_STRING "SW_0.28"
+#define SW_REV_0_30
+#define SW_STRING "SW_0.30"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -102,7 +105,7 @@ Button addrBtn = Button(10, &addrClicked);
 #else  // 2 digit display
 // no analog buttons
 OneButton addrBtn(ADDR_BTN, true);
-OneButton stopBtn(STOP_BTN, true);
+Button stopBtn(STOP_BTN);
 OneButton f0Btn(F0_BTN, true);
 OneButton f1Btn(F1_BTN, true);
 #endif
@@ -174,16 +177,16 @@ void setup() {
 #ifdef _DEBUG
 	Serial.begin(57600); // USB is always 12 Mbit/sec
 	long t1 = millis();
-	while ((!Serial) && ((millis() - t1) < 10000)) {
+	while ((!Serial) && ((millis() - t1) < 2000)) {
 		// make sure we read everything
-		//BUT wait only for 20 secs
+		//BUT wait only for 2 secs
 		// Watchdog.reset();   // no watchdog enabled so far
 		delay(100);
 	}
 
 #endif
 
-	// Initiliaze EEPROM library.
+	// Initialize EEPROM library.
 	eep.init();    // calling Wire.begin();
 
 	// init buttons, ADC and Timers
@@ -269,7 +272,8 @@ void initButtons() {
 	f1Btn.setPressTicks(5000);  // 5 secs for long press => switch off
 	f1Btn.attachLongPressStart(switchOffBatt);
 
-	stopBtn.setClickTicks(100);
+	//stopBtn.setClickTicks(100);
+  stopBtn.begin();
 
 	// address button
 	addrBtn.setClickTicks(300);
@@ -279,7 +283,7 @@ void initButtons() {
 	addrBtn.attachLongPressStart(toggleConfig);  
 #endif
 
-stopBtn.attachClick(stopClicked);    // all hardware revisions
+//stopBtn.attachClick(stopClicked);    // all hardware revisions
 
 }
 
@@ -339,8 +343,8 @@ void reconnectToWiFi() {
 	delay(1000);  // wait 1 seconds
 	Udp.beginMulti(lanbahnip, lanbahnport);
 
-	m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
-	Serial.println("deep sleep ENABLED");
+	//m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
+	//Serial.println("deep sleep ENABLED");
 
 	Serial.print("trying reconnect, millis=");
 	Serial.println(millis());
@@ -385,10 +389,10 @@ void connectToWiFi() {
 		delay(500);  // wait
 
 		Udp.beginMulti(lanbahnip, lanbahnport);
-		m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
+		//m2m_wifi_set_sleep_mode(M2M_PS_DEEP_AUTOMATIC, 1);
 
 #ifdef _DEBUG
-		Serial.println("deep sleep ENABLED");
+		//Serial.println("deep sleep ENABLED");
 		Serial.print("trying connect, millis=");
 		Serial.println(millis());
 		Serial.print("#retries=");
@@ -778,7 +782,10 @@ void loop() {
 	Watchdog.reset();
 
 	encoder.tick();
-	stopBtn.tick();
+	if (stopBtn.pressed()) {
+	  stopClicked();
+	  //stopBtn.tick();
+	}
 	addrBtn.tick();
 #ifdef HWREV_D_0_1
 	analogButtons.check();
