@@ -7,8 +7,10 @@
 
 //********************* general - HW independent
 
-#define HWREV_0_3   // test pcb rev 0.3 with EEPROM
-#define HW_STRING "HW_0.3"
+#define HWREV_0_2A
+#define HW_STRING "HW_0.2A"
+//#define HWREV_0_3   // test pcb rev 0.3 with EEPROM
+//#define HW_STRING "HW_0.3"
 
 //#define HWREV_D_0_1
 //#define HW_STRING "HW_D0.1"

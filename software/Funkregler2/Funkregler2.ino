@@ -48,8 +48,8 @@
 #include "AddrSelection.h"
 
 //*************** SW revision ***************************************
-#define SW_REV_0_30
-#define SW_STRING "SW_0.30"
+#define SW_REV_0_31
+#define SW_STRING "SW_0.31"
 
 //*************** lib used for 2-digit 7-segment display *************
 Display7 disp;
@@ -164,9 +164,10 @@ void setup() {
 	MyTimer5.attachInterrupt(display_irq);
 	// start the timer
 	MyTimer5.start();
-
+#ifdef BATT_ON
 	pinMode(BATT_ON, OUTPUT);
 	digitalWrite(BATT_ON, HIGH);  // batt power on
+#endif
 	disp.setDecPoint(BW, true);
 
 #ifdef HWREV_0_4     // enable function led outputs
@@ -175,7 +176,7 @@ void setup() {
 #endif
 
 #ifdef _DEBUG
-	Serial.begin(57600); // USB is always 12 Mbit/sec
+	Serial.begin(115200); // USB is always 12 Mbit/sec
 	long t1 = millis();
 	while ((!Serial) && ((millis() - t1) < 2000)) {
 		// make sure we read everything
@@ -273,7 +274,7 @@ void initButtons() {
 	f1Btn.attachLongPressStart(switchOffBatt);
 
 	//stopBtn.setClickTicks(100);
-  stopBtn.begin();
+    stopBtn.begin();
 
 	// address button
 	addrBtn.setClickTicks(300);
@@ -283,7 +284,6 @@ void initButtons() {
 	addrBtn.attachLongPressStart(toggleConfig);  
 #endif
 
-//stopBtn.attachClick(stopClicked);    // all hardware revisions
 
 }
 
@@ -940,7 +940,9 @@ void loop() {
 
 void switchOffBatt() {
 	// switch off
+#ifdef BATT_ON
 	digitalWrite(BATT_ON, LOW); // ==>> THIS IS THE END.
+#endif
 
 }
 /** check if input line selects a valid cc value
@@ -1125,6 +1127,19 @@ bool updateConfig(String line) {
 		} else {
 			Serial.println("could not write config");
 		}
+    } else if (line.startsWith("myid=")) {
+        String s = line.substring(line.indexOf('=') + 1);
+        myid = s.toInt();
+        if ((myid != 0) && (myid < 1000)) {  // 3digits or less
+          if (eep.writeID(myid)) {
+            Serial.print("myid=");
+            Serial.println(myid);
+          } else {
+            Serial.println("could not write config");
+          }
+        } else {
+            Serial.println("could not write config");
+        }
 	} else if (line.startsWith("list")) {
 		printConfigHelp();
 	}
@@ -1179,20 +1194,3 @@ void printEncryptionType(int thisType) {
       break;
   }
 }
-// ******************************************** snippets ********************************************
-/* TODO TRACKPOWER ON/off
- if ( encButtonPressed
- && ((millis() - encButtonTimer) > 1300 )
- && (trackPower != POWER_UNKNOWN) ) {
- // toggle trackPower (only when in known state)
- if (trackPower == POWER_ON) {
- trackPower = POWER_OFF;
- } else {
- trackPower = POWER_ON;
- }
- sendTrackPower();
- encButtonPressed = 0;  // do not toggle again
- #ifdef _DEBUG
- Serial.println("toggled trackpower.");
- #endif
- }  // endif encButtonTimer  */
