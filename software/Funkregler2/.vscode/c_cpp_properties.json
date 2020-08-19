@@ -1,0 +1,24 @@
+{
+    "configurations": [{
+        "name": "Linux",
+        "includePath": [
+            "/home/mblank/.arduino15/packages/arduino/tools/**",
+            "/home/mblank/.arduino15/packages/arduino/hardware/samd/1.8.8/**",
+            "${workspaceFolder}/**",
+            "/home/mblank/.arduino15/packages/arduino/hardware/avr/1.8.3/cores/arduino",
+            "/home/mblank/.arduino15/packages/arduino/hardware/avr/1.8.3/libraries",
+            "/home/mblank/.arduino15/packages/arduino/hardware/samd/1.8.8/cores/arduino",
+            "/home/mblank/.arduino15/packages/arduino/hardware/samd/1.8.8/libraries",
+            "/home/mblank/Arduino/libraries"
+        ],
+        "defines": [],
+        "compilerPath": "/usr/bin/clang",
+        "cStandard": "c11",
+        "cppStandard": "c++14",
+        "intelliSenseMode": "clang-x64",
+        "forcedInclude": [
+            "/home/mblank/.arduino15/packages/arduino/hardware/samd/1.8.8/cores/arduino/Arduino.h"
+        ]
+    }],
+    "version": 4
+}

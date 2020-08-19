@@ -1,0 +1,6 @@
+{
+    "programmer": "AVRISP mkII",
+    "board": "arduino:samd:mkr1000",
+    "port": "/dev/ttyACM0",
+    "sketch": "Funkregler2.ino"
+}

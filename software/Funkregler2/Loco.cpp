@@ -1,4 +1,4 @@
-/* SXLoco.cpp
+/* Loco.cpp
  * contains all details of a selectrix(SX1) loco
  
  * cannot include "EEPROM.h" here:
@@ -8,17 +8,17 @@
  * solution: include EEPROM.h only in .ino file "
  */
 
-#include "sxutils.h"
-#include "SXLoco.h"
+#include "utils.h"
+#include "Loco.h"
 
-SXLoco::SXLoco() {
+Loco::Loco() {
 	_address = 3;
 	_sxData = 0;
 	_changed = 1;
 	_speed = 0;
 }
 
-SXLoco::SXLoco(int16_t a) {
+Loco::Loco(int16_t a) {
 	if ((a > 0) && (a <= 103)) {   //TODO must be changed for DCC
 		_address = (uint8_t) a;
 	} else {
@@ -29,20 +29,20 @@ SXLoco::SXLoco(int16_t a) {
 	_speed = 0;
 }
 
-uint8_t SXLoco::hasChanged() {
+uint8_t Loco::hasChanged() {
 	return _changed;
 }
 
-void SXLoco::resetChanged() {
+void Loco::resetChanged() {
 	_changed = 0;
 }
 
-void SXLoco::stop() {
+void Loco::stop() {
 	_sxData &= 0xE0; // set speed bits (only) to zero
 	_changed = 1;
 }
 
-int16_t SXLoco::getSpeed() {
+int16_t Loco::getSpeed() {
 	int16_t s = _sxData & 0x1F; // positive
 	if (bitRead(_sxData, 5)) {
 		return -s;
@@ -51,7 +51,7 @@ int16_t SXLoco::getSpeed() {
 	}
 }
 
-uint8_t SXLoco::toggleF0() {
+uint8_t Loco::toggleF0() {
 	if (bitRead(_sxData, 6)) {
 		bitClear(_sxData, 6);
 	} else {
@@ -61,11 +61,11 @@ uint8_t SXLoco::toggleF0() {
 	return bitRead(_sxData, 6);
 }
 
-uint8_t SXLoco::getF0() {
+uint8_t Loco::getF0() {
 	return bitRead(_sxData, 6);
 }
 
-uint8_t SXLoco::toggleF1() {
+uint8_t Loco::toggleF1() {
 	if (bitRead(_sxData, 7)) {
 		bitClear(_sxData, 7);
 	} else {
@@ -75,7 +75,7 @@ uint8_t SXLoco::toggleF1() {
 	return bitRead(_sxData, 7);
 }
 
-uint8_t SXLoco::toggleFunction(uint8_t i) {
+uint8_t Loco::toggleFunction(uint8_t i) {
 	if (i == 0) {
 		return toggleF0();
 	} else if (i == 1) {
@@ -85,15 +85,15 @@ uint8_t SXLoco::toggleFunction(uint8_t i) {
 	}
 }
 
-uint8_t SXLoco::getF1() {
+uint8_t Loco::getF1() {
 	return bitRead(_sxData, 7);
 }
 
-uint8_t SXLoco::getBackward() {
+uint8_t Loco::getBackward() {
 	return bitRead(_sxData, 5);
 }
 
-void SXLoco::setBackward(bool b) {
+void Loco::setBackward(bool b) {
 	if (b == true) {
 		bitSet(_sxData, 5);
 	} else {
@@ -101,11 +101,11 @@ void SXLoco::setBackward(bool b) {
 	}
 }
 
-uint16_t SXLoco::getAddress() {
+uint16_t Loco::getAddress() {
 	return _address;
 }
 
-uint16_t SXLoco::setAddress(uint16_t a) {
+uint16_t Loco::setAddress(uint16_t a) {
 	if ((a > 0) && (a <= 103)) {
 		_address = (uint8_t) a;
 	} else {
@@ -114,12 +114,12 @@ uint16_t SXLoco::setAddress(uint16_t a) {
 	return _address;
 }
 
-uint8_t SXLoco::getSXData() {
+uint8_t Loco::getSXData() {
 	// sx data (bit 5=direction, bit 6= light, bit7= horn)
 	return _sxData;
 }
 
-void SXLoco::setFromSXData(uint8_t data) {
+void Loco::setFromSXData(uint8_t data) {
 	// sx data (bit 5=direction, bit 6= light, bit7= horn)
 	_sxData = data;
 }
@@ -127,7 +127,7 @@ void SXLoco::setFromSXData(uint8_t data) {
 /** set the speed from number -31 .. +31
  *  
  */
-void SXLoco::setSpeed(int16_t sp) {  //TODO must be changed for DCC
+void Loco::setSpeed(int16_t sp) {  //TODO must be changed for DCC
 	//Serial.print("SXLoco.setSpeed, sp=");
 	//Serial.println(sp);
 
@@ -160,4 +160,3 @@ void SXLoco::setSpeed(int16_t sp) {  //TODO must be changed for DCC
 	}
 
 }
-

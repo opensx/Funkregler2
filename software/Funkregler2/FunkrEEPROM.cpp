@@ -8,88 +8,111 @@
 #include "FunkrEEPROM.h"
 
 //************** i2c eeprom ******************************************
-#define EEPROM_I2C_ADDR    0x50
-Eeprom24C32_64 eeprom(EEPROM_I2C_ADDR);  // EEPROM at i2c address 50hex
+#define EEPROM_I2C_ADDR 0x50
+Eeprom24C32_64 eeprom(EEPROM_I2C_ADDR); // EEPROM at i2c address 50hex
 
-FunkrEEPROM::FunkrEEPROM() {
-
+FunkrEEPROM::FunkrEEPROM()
+{
 }
 
 // Initiliaze EEPROM library.
-void FunkrEEPROM::init(void) {
-	eeprom.initialize();    // = Wire.begin();
+void FunkrEEPROM::init(void)
+{
+	eeprom.initialize(); // = Wire.begin();
 	delay(10);
 }
 
-bool FunkrEEPROM::writeSSID(String s) {
-	return writeConfigString((word) EEPROM_SSID, s);
+bool FunkrEEPROM::writeSSID(String s)
+{
+	return writeConfigString((word)EEPROM_SSID, s);
 }
 
-String FunkrEEPROM::readSSID(void) {
-	return readConfigString((word) EEPROM_SSID);
+String FunkrEEPROM::readSSID(void)
+{
+	return readConfigString((word)EEPROM_SSID);
 }
 
-bool FunkrEEPROM::writePASS(String s) {
-	return writeConfigString((word) EEPROM_PASS, s);
+bool FunkrEEPROM::writePASS(String s)
+{
+	return writeConfigString((word)EEPROM_PASS, s);
 }
 
-String FunkrEEPROM::readPASS(void) {
-	return readConfigString((word) EEPROM_PASS);
+String FunkrEEPROM::readPASS(void)
+{
+	return readConfigString((word)EEPROM_PASS);
 }
 
-
-bool FunkrEEPROM::writeLocoList(String s) {
-	return writeConfigString((word) EEPROM_LOCOLIST, s);
+bool FunkrEEPROM::writeCCmode(String s)
+{
+	return writeConfigString((word)EEPROM_CCMODE, s);
 }
 
-
-String FunkrEEPROM::readLocoList(void) {
-	return readConfigString((word) EEPROM_LOCOLIST);
+String FunkrEEPROM::readCCmode(void)
+{
+	return readConfigString((word)EEPROM_CCMODE);
 }
 
-
-bool FunkrEEPROM::writeAddrMode(uint16_t m) {
-	return writeConfigUInt16((word) EEPROM_ADDR_MODE, m) ;
+bool FunkrEEPROM::writeLocoList(String s)
+{
+	return writeConfigString((word)EEPROM_LOCOLIST, s);
 }
 
-
-uint16_t FunkrEEPROM::readAddrMode(void) {
-	return readConfigUInt16((word) EEPROM_ADDR_MODE) ;
+String FunkrEEPROM::readLocoList(void)
+{
+	return readConfigString((word)EEPROM_LOCOLIST);
 }
 
-bool FunkrEEPROM::writeLastLoco(uint16_t a) {
-	return writeConfigUInt16((word) EEPROM_LAST_LOCO, a) ;
+bool FunkrEEPROM::writeAddrMode(uint16_t m)
+{
+	return writeConfigUInt16((word)EEPROM_ADDR_MODE, m);
 }
 
-uint16_t FunkrEEPROM::readLastLoco(void) {
-	return readConfigUInt16((word) EEPROM_LAST_LOCO) ;
+uint16_t FunkrEEPROM::readAddrMode(void)
+{
+	return readConfigUInt16((word)EEPROM_ADDR_MODE);
 }
 
-bool FunkrEEPROM::writeID(uint16_t a) {
-	return writeConfigUInt16((word) EEPROM_ID, a) ;
+bool FunkrEEPROM::writeLastLoco(uint16_t a)
+{
+	return writeConfigUInt16((word)EEPROM_LAST_LOCO, a);
 }
 
-uint16_t FunkrEEPROM::readID(void) {
-	return readConfigUInt16((word) EEPROM_ID) ;
+uint16_t FunkrEEPROM::readLastLoco(void)
+{
+	return readConfigUInt16((word)EEPROM_LAST_LOCO);
 }
 
-bool FunkrEEPROM::writeVoltCalibration(uint16_t a) {
-	return writeConfigUInt16((word) EEPROM_VOLT, a) ;
+bool FunkrEEPROM::writeID(uint16_t a)
+{
+	return writeConfigUInt16((word)EEPROM_ID, a);
 }
 
-uint16_t FunkrEEPROM::readVoltCalibration(void) {
-	return readConfigUInt16((word) EEPROM_VOLT) ;
+uint16_t FunkrEEPROM::readID(void)
+{
+	return readConfigUInt16((word)EEPROM_ID);
+}
+
+bool FunkrEEPROM::writeVoltCalibration(uint16_t a)
+{
+	return writeConfigUInt16((word)EEPROM_VOLT, a);
+}
+
+uint16_t FunkrEEPROM::readVoltCalibration(void)
+{
+	return readConfigUInt16((word)EEPROM_VOLT);
 }
 /**
  * write a (non-empty) config string to EEPROM
  */
-bool FunkrEEPROM::writeConfigString(word addr, String s) {
-	char eebuf[MAX_STRING_LEN] = { 0 };
-	if (s.length() == 0) return false;
+bool FunkrEEPROM::writeConfigString(word addr, String s)
+{
+	char eebuf[MAX_STRING_LEN] = {0};
+	if (s.length() == 0)
+		return false;
 
 	s.toCharArray(eebuf, MAX_STRING_LEN);
-	eeprom.writeBytes((word) addr, (word) MAX_STRING_LEN,
-					(byte *) eebuf);  // write '0' at the end of the string also
+	eeprom.writeBytes((word)addr, (word)MAX_STRING_LEN,
+					  (byte *)eebuf); // write '0' at the end of the string also
 	delay(20);
 	return true;
 }
@@ -97,39 +120,44 @@ bool FunkrEEPROM::writeConfigString(word addr, String s) {
 /** read a config string from EEPROM
  *
  */
-String FunkrEEPROM::readConfigString(word addr) {
-	char buffer[MAX_STRING_LEN + 1] = { 0 };
-	eeprom.readBytes((word) addr, (word) MAX_STRING_LEN,
-			(byte *) buffer);
-	if (buffer[0] == 0xff) {
-		return String();   // empty, not initialized
-	} else {
+String FunkrEEPROM::readConfigString(word addr)
+{
+	char buffer[MAX_STRING_LEN + 1] = {0};
+	eeprom.readBytes((word)addr, (word)MAX_STRING_LEN,
+					 (byte *)buffer);
+	if (buffer[0] == 0xff)
+	{
+		return String(); // empty, not initialized
+	}
+	else
+	{
 		return String(buffer);
 	}
 }
 
-uint16_t FunkrEEPROM::readConfigUInt16(word addr) {
+uint16_t FunkrEEPROM::readConfigUInt16(word addr)
+{
 	uint16_t d = 0;
-    Serial.println();
+	Serial.println();
 
 	byte low = eeprom.readByte(addr);
-	byte high = eeprom.readByte(addr+1);
+	byte high = eeprom.readByte(addr + 1);
 
-	d = (((uint16_t)high ) << 8) | low;
+	d = (((uint16_t)high) << 8) | low;
 
 	return d;
-
 }
 
-bool FunkrEEPROM::writeConfigUInt16(word addr, uint16_t d) {
+bool FunkrEEPROM::writeConfigUInt16(word addr, uint16_t d)
+{
 
 	byte low = d & 0xff;
 	byte high = (d >> 8) && 0xff;
 
-	eeprom.writeByte(addr,low);
-	delay(10);  // important
-	eeprom.writeByte(addr+1, high);
-	delay(10);  // important
+	eeprom.writeByte(addr, low);
+	delay(10); // important
+	eeprom.writeByte(addr + 1, high);
+	delay(10); // important
 
 	return true;
 }
