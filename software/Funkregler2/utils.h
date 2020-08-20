@@ -12,8 +12,6 @@
 #include <Arduino.h>
 #include <inttypes.h>
 
-// SELECTRIX SPECIFIC
-#define MAX_SPEED 31 // min_speed = 0 !
 #define MIN_ADDRESS 1
 #define MAX_ADDRESS 99
 #define INVALID_UI8 255 // invalid uint8_t value
@@ -32,6 +30,13 @@ extern uint8_t lastAddr[N_ADDR];  // for storing the last 4 addresses
 extern uint8_t addrUsage[N_ADDR]; // store usage of last 4 addresses
 extern uint8_t indexLastAddr;
 
-uint8_t addressFunction(uint8_t addr);
+#define N_CCMODE (2)
+#define CCMODE_SX (0)
+#define CCMODE_LN (1)
+
+extern String s_ccmode[N_CCMODE];
+extern uint8_t ccmode;
+
+extern uint8_t addressFunction(uint8_t addr);
 
 #endif //UTILS_H_

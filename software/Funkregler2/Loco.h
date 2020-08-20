@@ -21,9 +21,11 @@ public:
 
     uint8_t toggleFunction(uint8_t i);
 
-    void setSpeed(int16_t); // speed (signed)
-    int16_t getSpeed(void); // speed (signed)
+    void setSpeed(int8_t); // speed (signed)
+    int8_t getSpeed(void); // speed (signed)
 
+    int8_t getMaxSpeed();   // 31 for SX, 64 for DCC (*2)
+ 
     uint8_t getBackward(void);
     void setBackward(bool);
     void stop(void); // set speed to zero, doesn't change dir
@@ -42,7 +44,7 @@ private:
     uint8_t _sxData = 0;   // contains ALL (current) loco data
     uint8_t _changed = 1;  // loco address has changed
     uint16_t _address = 1; // the address of the current loco
-    int16_t _speed = 0;    // for dcc
+    int8_t _speed = 0;    // for dcc
 };
 
 #endif // LOCO_H_

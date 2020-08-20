@@ -14,6 +14,7 @@ Hardware rev. 0.3 and rev. DCC-0.1
 - Buttons für Adress-Selection ("A"), Licht (F0="L") und Function (F1="F")
 - DCC-Version: Buttons for A and F0 ... F4
 
+19 Aug 2020 - reworking DCC(LN) version
 15 Sep 2016 - improved config  
 13 Aug 2016 - for DCC HW 
 08 Aug 2016 - initial Version
@@ -33,5 +34,5 @@ libraries, see
 <a href="https://www.arduino.cc/en/Guide/Libraries" target="_blank">Arduino 
 Libraries Guide</a>
 
- (c) Michael Blank - 2016-2018 - <a href="http://opensx.net" target="_blank">
+ (c) Michael Blank - 2016-2020 - <a href="http://opensx.net" target="_blank">
 opensx.net</a>

@@ -8,6 +8,10 @@ uint8_t lastAddr[N_ADDR] = {64, 78, 1, 3}; // for storing the last 4 addresses  
 uint8_t addrUsage[N_ADDR];                 // store usage of last 4 addresses
 uint8_t indexLastAddr = 1;
 
+String s_ccmode[N_CCMODE] = {"SX", "LN"};
+uint8_t ccmode = CCMODE_SX;
+
+
 /**
 add the 4 last address as indirect_address = 100 ...103 to the
 number of possible addresses.

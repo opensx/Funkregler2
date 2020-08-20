@@ -134,11 +134,6 @@ int wifiRetries = 0;
 String ssid;
 String pass;
 
-#define N_CCMODE (2)
-String s_ccmode[N_CCMODE] = {"SX", "LN"};
-#define CCMODE_SX (0)
-#define CCMODE_LN (1)
-uint8_t ccmode = CCMODE_SX;
 
 Loco loco; // construct a loco with address etc (depending on ccmode)
 
@@ -651,8 +646,11 @@ void sendAndDisplaySpeed()
 	{
 		uint8_t addr = loco.getAddress();
 		uint8_t dir = loco.getBackward();
-		String func = "1 0 0 0 0"; // TODO loco.getF0F4String();
-		sprintf(buffer, "LN %d %d %s\n", addr, dir, func.c_str());
+		uint8_t sp = abs(loco.getSpeed());
+		uint8_t f0 = loco.getF0();
+		uint8_t f1 = loco.getF1();
+		//String func = "1 0 0 0 0"; // TODO loco.getF0F4String();
+		sprintf(buffer, "LN %d %d %d %d %d %d\n", myid, addr, sp, dir, f0, f1);
 	}
 
 #ifdef _DEBUG
@@ -911,7 +909,7 @@ void loop()
 			updateTimer = millis();
 
 			long newSpeed;
-			newSpeed = encoder.getPositionMax(MAX_SPEED);
+			newSpeed = encoder.getPositionMax(loco.getMaxSpeed());
 
 			if (newSpeed != loco.getSpeed())
 			{
@@ -1029,6 +1027,7 @@ void switchOffBatt()
 	digitalWrite(BATT_ON, LOW); // ==>> THIS IS THE END.
 #endif
 }
+
 
 /** check if input line selects a valid cc value
  *  and set new ccmode
